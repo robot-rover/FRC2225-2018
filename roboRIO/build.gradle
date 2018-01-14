@@ -2,7 +2,7 @@ apply plugin: "jaci.openrio.gradle.GradleRIO"
 
 deploy {
     targets {
-        target("roborio", jaci.openrio.gradle.frc.RoboRIO) {
+        target("roboRIO", jaci.openrio.gradle.frc.RoboRIO) {
             team = 2225
         }
     }
@@ -10,19 +10,28 @@ deploy {
         // Define my robot artifact. The FRCJavaArtifact type gives access to
         // robotCommand and other tools necessary for the RoboRIO to detect
         // and run our code.
-        artifact('robotCode', jaci.openrio.gradle.frc.FRCJavaArtifact) {
-            targets << "roborio"
+        artifact('roboRIOCode', jaci.openrio.gradle.frc.FRCJavaArtifact) {
+            targets << "roboRIO"
         }
     }
 }
+
+wpi.cscoreVersion="1.1.0"
 
 // Defining my dependencies. In this case, WPILib (+ friends), CTRE Toolsuite (Talon SRX)
 dependencies {
     compile wpilib()
     compile ctre()
+    testCompile group: 'org.jfree', name: 'jfreechart', version: '1.5.0'
 }
 
 jar {
     from configurations.compile.collect { it.isDirectory() ? it : zipTree(it) }
     manifest jaci.openrio.gradle.GradleRIOPlugin.javaManifest('gradlerio.RobotExample')
+}
+
+task native_cscore_athena {
+    dependencies {
+
+    }
 }

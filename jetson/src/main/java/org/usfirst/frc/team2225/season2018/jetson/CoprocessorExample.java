@@ -1,4 +1,4 @@
-package frc.team2225.season2018.jetson;
+package org.usfirst.frc.team2225.season2018.jetson;
 
 public class CoprocessorExample {
     public static void main(String[] args) {
