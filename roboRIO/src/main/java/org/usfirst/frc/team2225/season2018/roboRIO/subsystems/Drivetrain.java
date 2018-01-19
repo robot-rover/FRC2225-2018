@@ -1,23 +1,23 @@
 package org.usfirst.frc.team2225.season2018.roboRIO.subsystems;
 
 import com.ctre.phoenix.motorcontrol.ControlMode;
+import com.ctre.phoenix.motorcontrol.FeedbackDevice;
+import com.ctre.phoenix.motorcontrol.NeutralMode;
 import com.ctre.phoenix.motorcontrol.can.TalonSRX;
 import edu.wpi.first.wpilibj.command.Subsystem;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import org.usfirst.frc.team2225.season2018.roboRIO.Vector2D;
-
-import java.util.function.Supplier;
+import org.usfirst.frc.team2225.season2018.roboRIO.commands.ArcadeDrive;
 
 public class Drivetrain extends Subsystem {
     static final Vector2D frontLeftVec = new Vector2D(Math.sqrt(2) / 2, Math.sqrt(2) / 2);
     static final Vector2D frontRightVec = new Vector2D(-Math.sqrt(2) / 2, Math.sqrt(2) / 2);
     static final Vector2D backLeftVec = new Vector2D(-Math.sqrt(2) / 2, Math.sqrt(2) / 2);
     static final Vector2D backRightVec = new Vector2D(Math.sqrt(2) / 2, Math.sqrt(2) / 2);
-    TalonSRX frontLeft;
-    TalonSRX frontRight;
-    TalonSRX backLeft;
-    TalonSRX backRight;
-    Supplier<Vector2D> translationCallback;
-    Supplier<Float> rotationCallback;
+    public TalonSRX frontLeft;
+    public TalonSRX frontRight;
+    public TalonSRX backLeft;
+    public TalonSRX backRight;
 
     /**
      * Contructs an Omnidrive object
@@ -34,6 +34,16 @@ public class Drivetrain extends Subsystem {
         backLeft.setInverted(true);
         this.backRight = backRight;
         backRight.setInverted(true);
+        for(TalonSRX motor : new TalonSRX[]{frontLeft, frontRight, backLeft, backRight}) {
+            motor.setNeutralMode(NeutralMode.Brake);
+            motor.configSelectedFeedbackSensor(FeedbackDevice.QuadEncoder, 0, 0);
+        }
+    }
+
+    @Override
+    public void periodic() {
+        SmartDashboard.putNumber("Motor Position", frontLeft.getSelectedSensorPosition(0));
+        SmartDashboard.putNumber("Motor Velocity", frontLeft.getSelectedSensorVelocity(0));
     }
 
     public static double padValue(double pad, double value, boolean includePad) {
@@ -43,7 +53,7 @@ public class Drivetrain extends Subsystem {
 
     @Override
     protected void initDefaultCommand() {
-
+        setDefaultCommand(new ArcadeDrive());
     }
 
     /**
@@ -54,7 +64,7 @@ public class Drivetrain extends Subsystem {
      * @param right The right input
      */
     public void tankDrive(double left, double right) {
-        setMotorsCurrent(left, right, left, right);
+        setMotorVoltage(left, right, left, right);
     }
 
     /**
@@ -69,7 +79,7 @@ public class Drivetrain extends Subsystem {
         double left = map.y, right = map.y;
         left += map.x;
         right -= map.x;
-        setMotorsCurrent(left, right, left, right);
+        setMotorVoltage(left, right, left, right);
     }
 
     /**
@@ -80,11 +90,24 @@ public class Drivetrain extends Subsystem {
      * @param bl The output level for the back left motor
      * @param br The output level for the back right motor
      */
-    public void setMotorsCurrent(double fl, double fr, double bl, double br) {
-        frontLeft.set(ControlMode.Current, fl);
-        frontRight.set(ControlMode.Current, fr);
-        backLeft.set(ControlMode.Current, bl);
-        backRight.set(ControlMode.Current, br);
+    public void setMotorVoltage(double fl, double fr, double bl, double br) {
+        frontLeft.set(ControlMode.PercentOutput, fl);
+        frontRight.set(ControlMode.PercentOutput, fr);
+        backLeft.set(ControlMode.PercentOutput, bl);
+        backRight.set(ControlMode.PercentOutput, br);
+    }
+
+    public void setMotorSpeed(double fl, double fr, double bl, double br) {
+        frontLeft.set(ControlMode.Velocity, fl);
+        frontRight.set(ControlMode.Velocity, fr);
+        backLeft.set(ControlMode.Velocity, bl);
+        backRight.set(ControlMode.Velocity, br);
+    }
+
+    static final int encoderUnitConversion = 0;
+    public int getPosition(TalonSRX motor) {
+
+        return motor.getSelectedSensorPosition(0);
     }
 
     /**
@@ -110,6 +133,6 @@ public class Drivetrain extends Subsystem {
     }
 
     public void reset() {
-        setMotorsCurrent(0, 0, 0, 0);
+        setMotorVoltage(0, 0, 0, 0);
     }
 }

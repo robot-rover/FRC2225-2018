@@ -1,16 +1,17 @@
 package org.usfirst.frc.team2225.season2018.roboRIO.subsystems;
 
 import edu.wpi.first.wpilibj.Joystick;
+import edu.wpi.first.wpilibj.XboxController;
 import edu.wpi.first.wpilibj.command.Subsystem;
 
 public class DriverInput extends Subsystem {
-    private Joystick joy;
+    private XboxController joy;
 
     public DriverInput() {
-        joy = new Joystick(0);
+        joy = new XboxController(0);
     }
 
-    public Joystick getJoy() {
+    public XboxController getJoy() {
         return joy;
     }
 

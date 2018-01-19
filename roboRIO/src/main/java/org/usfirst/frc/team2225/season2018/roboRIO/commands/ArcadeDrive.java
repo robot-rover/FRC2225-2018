@@ -1,5 +1,6 @@
 package org.usfirst.frc.team2225.season2018.roboRIO.commands;
 
+import edu.wpi.first.wpilibj.GenericHID;
 import edu.wpi.first.wpilibj.command.Command;
 import org.usfirst.frc.team2225.season2018.roboRIO.RoboRIOMain;
 
@@ -12,7 +13,7 @@ public class ArcadeDrive extends Command {
 
     @Override
     protected void execute() {
-        RoboRIOMain.drivetrain.arcadeDrive(RoboRIOMain.driverInput.getJoy().getThrottle(), RoboRIOMain.driverInput.getJoy().getTwist());
+        RoboRIOMain.drivetrain.arcadeDrive(RoboRIOMain.driverInput.getJoy().getY(GenericHID.Hand.kLeft), RoboRIOMain.driverInput.getJoy().getX(GenericHID.Hand.kLeft));
     }
 
     @Override

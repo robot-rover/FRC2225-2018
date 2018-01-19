@@ -25,6 +25,7 @@ repositories {
 
 dependencies {
     compile group: 'org.boofcv', name: 'boofcv-core', version: '0.27'
+    testCompile group: 'org.boofcv', name: 'boofcv-swing', version: '0.27'
 }
 
 jar {

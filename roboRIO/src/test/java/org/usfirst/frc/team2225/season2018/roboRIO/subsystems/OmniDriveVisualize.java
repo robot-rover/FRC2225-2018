@@ -50,7 +50,7 @@ public class OmniDriveVisualize extends ApplicationFrame {
         panel.setPreferredSize(new java.awt.Dimension(800, 800));
         panel.addChartMouseListener(new ChartMouseListener() {
             @Override
-            public void chartMouseClicked(ChartMouseEvent event) {
+            public void chartMouseMoved(ChartMouseEvent event) {
                 dataset.removeAllSeries();
                 MouseEvent click = event.getTrigger();
                 Rectangle2D dataArea = panel.getScreenDataArea();
@@ -66,7 +66,7 @@ public class OmniDriveVisualize extends ApplicationFrame {
                 plot.getRenderer().setSeriesStroke(dataset.getSeriesCount() - 1, new BasicStroke(5, BasicStroke.CAP_ROUND, BasicStroke.JOIN_MITER));
                 translate.mapSquareToDiamond().divide(Math.sqrt(2) / 2);
 
-                System.out.println(translate);
+                //System.out.println(translate);
                 double fr, fl, br, bl;
                 fl = translate.dot(frontLeftVec);
                 fr = translate.dot(frontRightVec);
@@ -98,7 +98,7 @@ public class OmniDriveVisualize extends ApplicationFrame {
             }
 
             @Override
-            public void chartMouseMoved(ChartMouseEvent event) {
+            public void chartMouseClicked(ChartMouseEvent event) {
 
             }
         });

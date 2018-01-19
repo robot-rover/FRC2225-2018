@@ -23,11 +23,12 @@ dependencies {
     compile wpilib()
     compile ctre()
     testCompile group: 'org.jfree', name: 'jfreechart', version: '1.5.0'
+    testCompile group: 'com.github.sarxos', name: 'webcam-capture', version: '0.3.12'
 }
 
 jar {
     from configurations.compile.collect { it.isDirectory() ? it : zipTree(it) }
-    manifest jaci.openrio.gradle.GradleRIOPlugin.javaManifest('gradlerio.RobotExample')
+    manifest jaci.openrio.gradle.GradleRIOPlugin.javaManifest('org.usfirst.frc.team2225.season2018.roboRIO.RoboRIOMain')
 }
 
 task native_cscore_athena {

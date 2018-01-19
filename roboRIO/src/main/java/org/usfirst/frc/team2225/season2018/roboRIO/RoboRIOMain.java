@@ -1,6 +1,8 @@
 package org.usfirst.frc.team2225.season2018.roboRIO;
 
 import com.ctre.phoenix.motorcontrol.can.TalonSRX;
+import edu.wpi.first.wpilibj.DriverStation;
+import edu.wpi.first.wpilibj.GenericHID;
 import edu.wpi.first.wpilibj.IterativeRobot;
 import edu.wpi.first.wpilibj.command.Command;
 import edu.wpi.first.wpilibj.command.Scheduler;
@@ -48,6 +50,7 @@ public class RoboRIOMain extends IterativeRobot {
     @Override
     public void disabledPeriodic() {
         Scheduler.getInstance().run();
+        //DriverStation.reportWarning("Joy Out: " + driverInput.getJoy().getY(GenericHID.Hand.kLeft) + ", " + driverInput.getJoy().getX(GenericHID.Hand.kLeft), false);
     }
 
     /**

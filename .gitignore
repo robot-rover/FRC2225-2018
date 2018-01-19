@@ -20,6 +20,19 @@
 # Gradle:
 .idea/**/gradle.xml
 .idea/**/libraries
+.gradle
+/build/
+/jetson/build/
+/roboRIO/build/
+
+# Ignore Gradle GUI config
+gradle-app.setting
+
+# Cache of project
+.gradletasknamecache
+
+# # Work around https://youtrack.jetbrains.com/issue/IDEA-116898
+# gradle/wrapper/gradle-wrapper.properties
 
 # CMake
 cmake-build-debug/
@@ -72,3 +85,7 @@ fabric.properties
 
 # virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
 hs_err_pid*
+
+# Avoid ignoring Gradle wrapper jar file (.jar files are usually ignored)
+!gradle-wrapper.jar
+
