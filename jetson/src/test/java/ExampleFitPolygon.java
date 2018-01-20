@@ -1,3 +1,4 @@
+import boofcv.alg.color.ColorHsv;
 import boofcv.gui.ListDisplayPanel;
 import boofcv.gui.binary.VisualizeBinaryData;
 import boofcv.gui.image.ShowImages;
@@ -84,14 +85,27 @@ public class ExampleFitPolygon {
         Scanner kbIn = new Scanner(System.in);
         String input;
         ShowImages.showWindow(gui, "Polygon from Contour", false);
-        runGui();
+        Planar<GrayF32> hsv = images.get(0);
+        ColorHsv.rgbToHsv_F32(images.get(0), images.get(0));
+        for(int i = 0; i < hsv.bands[0].data.length; i++) {
+            float sqr = Math.max(Math.abs(hsv.bands[0].data[i] - 1.07f)-0.50f, 0);
+            hsv.bands[0].data[i] = VisionPipeline.clamp(5/((float)Math.sqrt(sqr) - 100 * Math.max(0, 0.5f - hsv.bands[1].data[i])), 10f, 244f);
+        }
+        gui.addImage(images.get(0), "Real");
+
+        Planar<GrayF32> testImage = images.get(0);
+        for(int i = 0; i < 5; i++)
+            System.out.println("H: " + testImage.bands[0].data[i] + ", S: " + testImage.bands[1].data[i] + ", V: " + testImage.bands[2].data[i]);
+
+
+        /*runGui();
         while (kbIn.nextLine().length() == 0){
 
             gui.reset();
             runGui();
             System.out.println("Run");
         }
-        System.exit(0);
+        System.exit(0);*/
     }
 
     public static void runGui() {
