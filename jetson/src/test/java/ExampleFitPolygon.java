@@ -25,11 +25,11 @@ public class ExampleFitPolygon {
     private static ListDisplayPanel gui = new ListDisplayPanel();
 
     public static void testFind(Planar<GrayF32> image) {
-        VisionPipeline pipeline = new VisionPipeline(image.width, image.height, 8);
+        VisionPipeline pipeline = new VisionPipeline(image.width, image.height, 2);
         BlobInfo[] clusters = pipeline.process(image);
 
         System.out.println(Arrays.toString(clusters));
-        BufferedImage out = VisualizeBinaryData.renderLabeledBG(pipeline.getBinaryBuff(0), clusters.length, null);
+        BufferedImage out = VisualizeBinaryData.renderLabeledBG(pipeline.getBinaryBuff(1), clusters.length, null);
         Graphics g = out.createGraphics();
         g.setColor(Color.red);
         for(BlobInfo info : clusters) {
@@ -50,11 +50,11 @@ public class ExampleFitPolygon {
     public static void main( String args[] ) {
         loadImages();
         testPerformance();
-        //testImages();
+        testImages();
     }
 
     public static void testPerformance() {
-        VisionPipeline pipeline = new VisionPipeline(images.get(0).width, images.get(0).height, 8);
+        VisionPipeline pipeline = new VisionPipeline(images.get(0).width, images.get(0).height, 2);
         System.out.println("Warming JVM");
         for(int i = 0; i < 10; i++) {
             for(Planar<GrayF32> image : images)
@@ -78,7 +78,7 @@ public class ExampleFitPolygon {
         images = new ArrayList<>();
         for (int i = 0; i < 9; i++) {
             images.add(ConvertBufferedImage.convertFromPlanar(
-                    UtilImageIO.loadImage("jetson/src/test/resources/testImage-" + i + ".jpg"),
+                    UtilImageIO.loadImage("jetson/src/test/resources/downscaled/testImage-" + i + ".jpg"),
                     null, true, GrayF32.class
             ));
         }
@@ -88,7 +88,7 @@ public class ExampleFitPolygon {
 
         Scanner kbIn = new Scanner(System.in);
         String input;
-        ShowImages.showWindow(gui, "Polygon from Contour", false);
+        ShowImages.showWindow(gui, "Polygon from Contour", true);
         Planar<GrayF32> hsv = images.get(0);
         ColorHsv.rgbToHsv_F32(images.get(0), images.get(0));
         for(int i = 0; i < hsv.bands[0].data.length; i++) {

@@ -18,8 +18,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.jocl.CL.*;
-import static org.jocl.Sizeof.cl_int;
-import static org.jocl.Sizeof.cl_ulong;
 
 public class VisionPipeline {
     final static float color = 1.07f;
@@ -28,10 +26,8 @@ public class VisionPipeline {
     final static long deviceType = CL_DEVICE_TYPE_ALL;
     final static int deviceIndex = 0;
 
-    Shader hsv;
-    Shader hue;
-    Shader threshold;
-    Shader downscale;
+    Shader combinedInit;
+    Shader downThresh;
     Shader dilate4;
     Shader erode4;
     Shader blurMeanBin;
@@ -95,7 +91,7 @@ public class VisionPipeline {
 
         cl_queue_properties properties = new cl_queue_properties();
 
-        //properties.addProperty(CL_QUEUE_PROPERTIES, CL_QUEUE_PROFILING_ENABLE);
+        properties.addProperty(CL_QUEUE_PROPERTIES, CL_QUEUE_PROFILING_ENABLE);
 
         // Create a command-queue for the selected device
         commandQueue =
@@ -108,150 +104,113 @@ public class VisionPipeline {
             binBuff[i] = clCreateBuffer(context, CL_MEM_USE_HOST_PTR,
                     Sizeof.cl_float * width * height / scaleFactor / scaleFactor, Pointer.to(new float[width * height / scaleFactor / scaleFactor]), null);
 
-        hsv = new Shader("rgbToHsv", context);
-        hue = new Shader("hue", context);
-        threshold = new Shader("threshold", context);
-        downscale = new Shader("downscale", context);
-        dilate4 = new Shader("dilate4", context);
-        erode4 = new Shader("erode4", context);
+        combinedInit = new Shader("combinedInit", context);
+        downThresh = new Shader("scaleThresh", context);
+        /*dilate4 = new Shader("dilate4", context);
+        erode4 = new Shader("erode4", context);*/
         blurMeanBin = new Shader("blurMeanBin", context);
 
         setKernelArgs(width, height);
 
         global_work_size = new long[]{width * height};
         global_work_size_scaled = new long[]{global_work_size[0] / scaleFactor};
-        local_work_size = new long[]{16};
+        local_work_size = new long[]{64};
     }
 
     private void setKernelArgs(int imageWidth, int imageHeight) {
         int imageLength = imageWidth * imageHeight;
         // Set the arguments for the rgb2Hsv kernel
-        clSetKernelArg(hsv.kernel, 0,
+        clSetKernelArg(combinedInit.kernel, 0,
                 Sizeof.cl_mem, Pointer.to(planarHsvImage[0]));
-        clSetKernelArg(hsv.kernel, 1,
+        clSetKernelArg(combinedInit.kernel, 1,
                 Sizeof.cl_mem, Pointer.to(planarHsvImage[1]));
-        clSetKernelArg(hsv.kernel, 2,
+        clSetKernelArg(combinedInit.kernel, 2,
                 Sizeof.cl_mem, Pointer.to(planarHsvImage[2]));
-        clSetKernelArg(hsv.kernel, 3,
-                cl_int, Pointer.to(new int[]{imageLength}));
-
-        // Set the arguments for the planar filter kernel
-        clSetKernelArg(hue.kernel, 0,
-                Sizeof.cl_mem, Pointer.to(planarHsvImage[0]));
-        clSetKernelArg(hue.kernel, 1,
-                Sizeof.cl_mem, Pointer.to(planarHsvImage[1]));
-        clSetKernelArg(hue.kernel, 2,
-                Sizeof.cl_mem, Pointer.to(planarHsvImage[2]));
-        clSetKernelArg(hue.kernel, 3,
-                cl_int, Pointer.to(new int[]{imageLength}));
+        clSetKernelArg(combinedInit.kernel, 3,
+                Sizeof.cl_int, Pointer.to(new int[]{imageLength}));
 
         // Set the arguments for the downscale kernel
-        clSetKernelArg(downscale.kernel, 0,
+        clSetKernelArg(downThresh.kernel, 0,
                 Sizeof.cl_mem, Pointer.to(planarHsvImage[0]));
-        clSetKernelArg(downscale.kernel, 1,
+        clSetKernelArg(downThresh.kernel, 1,
                 Sizeof.cl_mem, Pointer.to(binBuff[0]));
-        clSetKernelArg(downscale.kernel, 2,
-                cl_int, Pointer.to(new int[]{scaleFactor}));
-        clSetKernelArg(downscale.kernel, 3,
-                cl_int, Pointer.to(new int[]{width}));
-        clSetKernelArg(downscale.kernel, 4,
-                cl_int, Pointer.to(new int[]{height}));
+        clSetKernelArg(downThresh.kernel, 2,
+                Sizeof.cl_int, Pointer.to(new int[]{scaleFactor}));
+        clSetKernelArg(downThresh.kernel, 3,
+                Sizeof.cl_int, Pointer.to(new int[]{width}));
+        clSetKernelArg(downThresh.kernel, 4,
+                Sizeof.cl_int, Pointer.to(new int[]{height}));
+        clSetKernelArg(downThresh.kernel, 5,
+                Sizeof.cl_float, Pointer.to(new float[]{100f}));
+        clSetKernelArg(downThresh.kernel, 6,
+                Sizeof.cl_int, Pointer.to(new int[]{0}));
 
         int scaledLength = imageLength / scaleFactor / scaleFactor;
 
-        // Set the arguments for the threshold kernel
-        clSetKernelArg(threshold.kernel, 0,
-                Sizeof.cl_mem, Pointer.to(binBuff[0]));
-        clSetKernelArg(threshold.kernel, 1,
-                Sizeof.cl_mem, Pointer.to(binBuff[1]));
-        clSetKernelArg(threshold.kernel, 2,
-                cl_int, Pointer.to(new int[]{0}));
-        clSetKernelArg(threshold.kernel, 3,
-                Sizeof.cl_float, Pointer.to(new float[]{100f}));
-        clSetKernelArg(threshold.kernel, 4,
-                cl_int, Pointer.to(new int[]{scaledLength}));
-
-        // Set the arguments for the kernel
-        clSetKernelArg(dilate4.kernel, 0,
-                Sizeof.cl_mem, Pointer.to(binBuff[1]));
-        clSetKernelArg(dilate4.kernel, 1,
-                Sizeof.cl_mem, Pointer.to(binBuff[0]));
-        clSetKernelArg(dilate4.kernel, 2,
-                cl_int, Pointer.to(new int[]{imageWidth / scaleFactor}));
-        clSetKernelArg(dilate4.kernel, 3,
-                cl_int, Pointer.to(new int[]{imageHeight / scaleFactor}));
-
-        // Set the arguments for the kernel
-        clSetKernelArg(erode4.kernel, 0,
-                Sizeof.cl_mem, Pointer.to(binBuff[0]));
-        clSetKernelArg(erode4.kernel, 1,
-                Sizeof.cl_mem, Pointer.to(binBuff[1]));
-        clSetKernelArg(erode4.kernel, 2,
-                cl_int, Pointer.to(new int[]{imageWidth / scaleFactor}));
-        clSetKernelArg(erode4.kernel, 3,
-                cl_int, Pointer.to(new int[]{imageHeight / scaleFactor}));
-
         // Set the arguments for the kernel
         clSetKernelArg(blurMeanBin.kernel, 0,
-                Sizeof.cl_mem, Pointer.to(binBuff[1]));
-        clSetKernelArg(blurMeanBin.kernel, 1,
                 Sizeof.cl_mem, Pointer.to(binBuff[0]));
+        clSetKernelArg(blurMeanBin.kernel, 1,
+                Sizeof.cl_mem, Pointer.to(binBuff[1]));
         clSetKernelArg(blurMeanBin.kernel, 2,
-                cl_int, Pointer.to(new int[]{imageWidth / scaleFactor}));
+                Sizeof.cl_int, Pointer.to(new int[]{imageWidth / scaleFactor}));
         clSetKernelArg(blurMeanBin.kernel, 3,
-                cl_int, Pointer.to(new int[]{imageWidth / scaleFactor}));
+                Sizeof.cl_int, Pointer.to(new int[]{imageHeight / scaleFactor}));
         clSetKernelArg(blurMeanBin.kernel, 4,
-                cl_int, Pointer.to(new int[]{7}));
+                Sizeof.cl_int, Pointer.to(new int[]{6}));
     }
 
     public BlobInfo[] process(Planar<GrayF32> image) {
-        /*cl_event[] events = new cl_event[9];
+        cl_event[] events = new cl_event[5];
         for(int i = 0; i < events.length; i++)
-            events[i] = new cl_event();*/
+            events[i] = null;
         //long one = System.currentTimeMillis();
         for(int i = 0; i < 3; i++)
             clEnqueueWriteBuffer(commandQueue, planarHsvImage[i], true, 0, Sizeof.cl_float * image.bands[i].data.length,
-                    Pointer.to(image.bands[i].data), 0, null, null);
+                    Pointer.to(image.bands[i].data), 0, null, events[0]);
         //long two = System.currentTimeMillis();
-        clEnqueueNDRangeKernel(commandQueue, hsv.kernel, 1, null,
-                global_work_size, local_work_size, 0, null, null);
-        clEnqueueNDRangeKernel(commandQueue, hue.kernel, 1, null,
-                global_work_size, local_work_size, 0, null, null);
-        clEnqueueNDRangeKernel(commandQueue, downscale.kernel, 1, null,
-                global_work_size_scaled, local_work_size, 0, null, null);
-        clEnqueueNDRangeKernel(commandQueue, threshold.kernel, 1, null,
-                global_work_size_scaled, local_work_size, 0, null, null);
-        clEnqueueNDRangeKernel(commandQueue, dilate4.kernel, 1, null,
-                global_work_size_scaled, local_work_size, 0, null, null);
-        clEnqueueNDRangeKernel(commandQueue, erode4.kernel, 1, null,
-                global_work_size_scaled, local_work_size, 0, null, null);
+        clEnqueueNDRangeKernel(commandQueue, combinedInit.kernel, 1, null,
+                global_work_size, local_work_size, 0, null, events[1]);
+        clEnqueueNDRangeKernel(commandQueue, downThresh.kernel, 1, null,
+                global_work_size_scaled, local_work_size, 0, null, events[2]);
         clEnqueueNDRangeKernel(commandQueue, blurMeanBin.kernel, 1, null,
-                global_work_size_scaled, local_work_size, 0, null, null);
-        clEnqueueReadBuffer(commandQueue, binBuff[0], true, 0,
-                Sizeof.cl_float * binary.data.length, Pointer.to(binary.data), 0, null, null);
-        //clFinish(commandQueue);
+                global_work_size_scaled, local_work_size, 0, null, events[3]);
+        clEnqueueReadBuffer(commandQueue, binBuff[1], true, 0,
+                Sizeof.cl_float * binary.data.length, Pointer.to(binary.data), 0, null, events[4]);
+        clFinish(commandQueue);
         //long three = System.currentTimeMillis();
         LabelNoContour alg = new LabelNoContour(ConnectRule.FOUR);
         int size = alg.process(binary, labeled);
+        BlobInfo[] results = getBlobInfo(labeled, size);
         /*long four = System.currentTimeMillis();
-        System.out.println(two - one);
-        System.out.println(three - two);
-        System.out.println(four - three);
+        System.out.println("Buffer Write: " + (two - one));
+        System.out.println("Process and Read: " + (three - two));
+        System.out.println("Component Labelling: " + (four - three));
         for(int i = 0; i < events.length; i++) {
             long[] queued = new long[1];
-            clGetEventProfilingInfo(events[i], CL_PROFILING_COMMAND_QUEUED, cl_ulong, Pointer.to(queued), null);
+            clGetEventProfilingInfo(events[i], CL_PROFILING_COMMAND_QUEUED, Sizeof.cl_ulong, Pointer.to(queued), null);
             long[] submit = new long[1];
-            clGetEventProfilingInfo(events[i], CL_PROFILING_COMMAND_SUBMIT, cl_ulong, Pointer.to(submit), null);
+            clGetEventProfilingInfo(events[i], CL_PROFILING_COMMAND_SUBMIT, Sizeof.cl_ulong, Pointer.to(submit), null);
             long[] start = new long[1];
-            clGetEventProfilingInfo(events[i], CL_PROFILING_COMMAND_START, cl_ulong, Pointer.to(start), null);
+            clGetEventProfilingInfo(events[i], CL_PROFILING_COMMAND_START, Sizeof.cl_ulong, Pointer.to(start), null);
             long[] end = new long[1];
-            clGetEventProfilingInfo(events[i], CL_PROFILING_COMMAND_END, cl_ulong, Pointer.to(end), null);
-            StringBuilder builder = new StringBuilder();
-            builder.append(i).append(": Queued -- ").append(submit[0] - queued[0]).append(" -> \tSubmit -- ").append(start[0] - submit[0]).append(" -> \tStart -- ").append(end[0] - start[0]).append(" -> \tEnd");
-            System.out.println(builder.toString());
+            clGetEventProfilingInfo(events[i], CL_PROFILING_COMMAND_END, Sizeof.cl_ulong, Pointer.to(end), null);
+            System.out.println(getShaderName(i) + ": Queued -- " + String.format("%10d", (submit[0] - queued[0])) + " -> Submit -- " + String.format("%8d", (start[0] - submit[0])) + " -> Start -- " + String.format("%8d", (end[0] - start[0])) + " -> End");
         }
         System.exit(0);*/
-        return getBlobInfo(labeled, size);
+
+        return results;
+    }
+
+    private String getShaderName(int index) {
+        switch (index) {
+            case 0: return "Buffer Write";
+            case 1: return "combinedInit";
+            case 2: return "scaleThresh ";
+            case 3: return "blurMeanBin ";
+            case 4: return "Buffer Read ";
+            default: return "UNKNOWN    ";
+        }
     }
 
     public GrayS32 getLabeled() {

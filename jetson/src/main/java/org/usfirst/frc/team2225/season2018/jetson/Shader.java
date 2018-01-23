@@ -19,7 +19,7 @@ public class Shader {
     public cl_kernel kernel;
     public Shader(String shaderName, cl_context context) {
         try {
-            source = Files.readAllLines(Paths.get(shaderDir).resolve(shaderName + ".cl")).stream().collect(Collectors.joining());
+            source = Files.readAllLines(Paths.get(shaderDir).resolve(shaderName + ".cl")).stream().collect(Collectors.joining("\n"));
         } catch (IOException e) {
             e.printStackTrace();
             source = "";
