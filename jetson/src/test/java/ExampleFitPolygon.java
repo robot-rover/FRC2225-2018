@@ -5,6 +5,8 @@ import boofcv.gui.image.ShowImages;
 import boofcv.io.image.ConvertBufferedImage;
 import boofcv.io.image.UtilImageIO;
 import boofcv.struct.image.GrayF32;
+import boofcv.struct.image.GrayS32;
+import boofcv.struct.image.GrayU8;
 import boofcv.struct.image.Planar;
 import org.usfirst.frc.team2225.season2018.jetson.BlobInfo;
 import org.usfirst.frc.team2225.season2018.jetson.VisionPipeline;
@@ -26,11 +28,8 @@ public class ExampleFitPolygon {
         VisionPipeline pipeline = new VisionPipeline(image.width, image.height, 8);
         BlobInfo[] clusters = pipeline.process(image);
 
-        gui.addImage(pipeline.getHueStep(), "PreProcess");
         System.out.println(Arrays.toString(clusters));
-        BufferedImage out = new BufferedImage(pipeline.getBinaryStep().width, pipeline.getBinaryStep().height, BufferedImage.TYPE_INT_RGB);
-        out = VisualizeBinaryData.renderBinary(pipeline.getBinaryStep(), false, out);
-        out = VisualizeBinaryData.render(pipeline.getContours(), new Color(0, 200, 0), out);
+        BufferedImage out = VisualizeBinaryData.renderLabeledBG(pipeline.getBinaryBuff(0), clusters.length, null);
         Graphics g = out.createGraphics();
         g.setColor(Color.red);
         for(BlobInfo info : clusters) {
@@ -39,14 +38,19 @@ public class ExampleFitPolygon {
             g.drawString(String.valueOf(info.size), info.getX() + 2, info.getY() - 2);
         }
         g.dispose();
-        gui.addImage(out, "Binary");
+        /*GrayF32 buffCont = pipeline.getDownBuff(0);
+        GrayU8 toBinary = new GrayU8(buffCont.width, buffCont.height);
+        for(int i = 0; i < buffCont.data.length; i++)
+            toBinary.data[i] = (byte) buffCont.data[i];*/
+        gui.addImage(out,"Binary");
     }
 
     static List<Planar<GrayF32>> images;
 
     public static void main( String args[] ) {
         loadImages();
-        testImages();
+        testPerformance();
+        //testImages();
     }
 
     public static void testPerformance() {
@@ -98,14 +102,14 @@ public class ExampleFitPolygon {
             System.out.println("H: " + testImage.bands[0].data[i] + ", S: " + testImage.bands[1].data[i] + ", V: " + testImage.bands[2].data[i]);
 
 
-        /*runGui();
+        runGui();
         while (kbIn.nextLine().length() == 0){
 
             gui.reset();
             runGui();
             System.out.println("Run");
         }
-        System.exit(0);*/
+        System.exit(0);
     }
 
     public static void runGui() {

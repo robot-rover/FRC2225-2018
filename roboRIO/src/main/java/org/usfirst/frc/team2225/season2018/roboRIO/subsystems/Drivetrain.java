@@ -118,8 +118,8 @@ public class Drivetrain extends Subsystem {
     }
 
     /**
-     * A complex drive scheme utilizing omniwheels to give the robot 3 degrees of freedom
-     * It can move in 2D space and rotate
+     * A complex drive scheme utilizing omniwheels to give the robot 3 degrees of freedom.
+     * It can move in 2D space and rotate.
      *
      * @param translate A vector representing the desired movement on a plane
      * @param rotate    The amount of rotation desired (Positive is counter-clockwise)
