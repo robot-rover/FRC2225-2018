@@ -50,7 +50,7 @@ public class ExampleFitPolygon {
     public static void main( String args[] ) {
         loadImages();
         testPerformance();
-        testImages();
+        //testImages();
     }
 
     public static void testPerformance() {

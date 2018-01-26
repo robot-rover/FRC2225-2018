@@ -4,10 +4,11 @@ import com.ctre.phoenix.motorcontrol.ControlMode;
 import com.ctre.phoenix.motorcontrol.FeedbackDevice;
 import com.ctre.phoenix.motorcontrol.NeutralMode;
 import com.ctre.phoenix.motorcontrol.can.TalonSRX;
+import edu.wpi.first.wpilibj.ADXRS450_Gyro;
 import edu.wpi.first.wpilibj.command.Subsystem;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import org.usfirst.frc.team2225.season2018.roboRIO.Vector2D;
-import org.usfirst.frc.team2225.season2018.roboRIO.commands.OmniDrive;
+import org.usfirst.frc.team2225.season2018.roboRIO.commands.Teleop;
 
 public class Drivetrain extends Subsystem {
     static final Vector2D frontLeftVec = new Vector2D(Math.sqrt(2) / 2, Math.sqrt(2) / 2);
@@ -18,6 +19,9 @@ public class Drivetrain extends Subsystem {
     public TalonSRX frontRight;
     public TalonSRX backLeft;
     public TalonSRX backRight;
+    public ADXRS450_Gyro gyro;
+    double targetRot;
+    int resetTargetRot;
 
     /**
      * Contructs an Omnidrive object
@@ -27,30 +31,35 @@ public class Drivetrain extends Subsystem {
      * @param backLeft   The motor controller in the back left
      * @param backRight  The motor controller in the back right
      */
-    public Drivetrain(TalonSRX frontLeft, TalonSRX frontRight, TalonSRX backLeft, TalonSRX backRight) {
+    public Drivetrain(TalonSRX frontLeft, TalonSRX frontRight, TalonSRX backLeft, TalonSRX backRight, ADXRS450_Gyro gyro) {
+        this.gyro = gyro;
+        gyro.reset();
+        targetRot = 0;
         this.frontLeft = frontLeft;
+        frontLeft.setSensorPhase(true);
+        frontLeft.setInverted(true);
         this.frontRight = frontRight;
         this.backLeft = backLeft;
+        backLeft.setSensorPhase(true);
         backLeft.setInverted(true);
         this.backRight = backRight;
-        frontLeft.setInverted(true);
         for(TalonSRX motor : new TalonSRX[]{frontLeft, frontRight, backLeft, backRight}) {
             motor.setNeutralMode(NeutralMode.Brake);
             motor.configSelectedFeedbackSensor(FeedbackDevice.QuadEncoder, 0, 0);
-            motor.configNominalOutputForward(0.2, 0);
-            motor.configNominalOutputReverse(0.2, 0);
+            motor.configNominalOutputForward(0.0, 0);
+            motor.configNominalOutputReverse(0.0, 0);
             motor.configPeakOutputForward(1, 0);
-            motor.configPeakOutputReverse(1, 0);
-            motor.config_kP(0, 0.5, 0);
+            motor.configPeakOutputReverse(-1, 0);
+            motor.configClosedloopRamp(0.4, 0);
+            motor.config_kP(0, 4, 0);
             motor.config_kI(0, 0, 0);
-            motor.config_kD(0, 5, 0);
+            motor.config_kD(0, 13, 0);
         }
     }
 
     @Override
     public void periodic() {
-        SmartDashboard.putNumber("Motor Position", frontLeft.getSelectedSensorPosition(0));
-        SmartDashboard.putNumber("Motor Velocity", frontLeft.getSelectedSensorVelocity(0));
+        SmartDashboard.putNumberArray("Gyro Reading", new double[]{gyro.getAngle(), gyro.getRate()});
     }
 
     public static double padValue(double pad, double value, boolean includePad) {
@@ -60,7 +69,7 @@ public class Drivetrain extends Subsystem {
 
     @Override
     protected void initDefaultCommand() {
-        setDefaultCommand(new OmniDrive());
+        setDefaultCommand(new Teleop());
     }
 
     /**
@@ -98,23 +107,34 @@ public class Drivetrain extends Subsystem {
      * @param br The output level for the back right motor
      */
     public void setMotorVoltage(double fl, double fr, double bl, double br) {
+        SmartDashboard.putNumberArray("Motor Outputs", new double[]{fl, fr, bl, br});
         frontLeft.set(ControlMode.PercentOutput, fl);
         frontRight.set(ControlMode.PercentOutput, fr);
         backLeft.set(ControlMode.PercentOutput, bl);
         backRight.set(ControlMode.PercentOutput, br);
+        SmartDashboard.putNumber("FL", frontLeft.getSelectedSensorVelocity(0));
+        SmartDashboard.putNumber("FR", frontRight.getSelectedSensorVelocity(0));
+        SmartDashboard.putNumber("BL", backLeft.getSelectedSensorVelocity(0));
+        SmartDashboard.putNumber("BR", backRight.getSelectedSensorVelocity(0));
     }
 
-    public void setMotorSpeed(double fl, double fr, double bl, double br) {
-        frontLeft.set(ControlMode.Velocity, fl);
-        frontRight.set(ControlMode.Velocity, fr);
-        backLeft.set(ControlMode.Velocity, bl);
-        backRight.set(ControlMode.Velocity, br);
+    static final int maxMotorSpeed = 600;
+
+    public void setMotorVelocity(double fl, double fr, double bl, double br) {
+        SmartDashboard.putNumberArray("Motor Outputs", new double[]{fl, fr, bl, br});
+        frontLeft.set(ControlMode.Velocity, fl * maxMotorSpeed);
+        frontRight.set(ControlMode.Velocity, fr * maxMotorSpeed);
+        backLeft.set(ControlMode.Velocity, bl * maxMotorSpeed);
+        backRight.set(ControlMode.Velocity, br * maxMotorSpeed);
+        SmartDashboard.putNumber("FL", frontLeft.getSelectedSensorVelocity(0));
+        SmartDashboard.putNumber("FR", frontRight.getSelectedSensorVelocity(0));
+        SmartDashboard.putNumber("BL", backLeft.getSelectedSensorVelocity(0));
+        SmartDashboard.putNumber("BR", backRight.getSelectedSensorVelocity(0));
     }
 
-    static final int encoderUnitConversion = 0;
-    public int getPosition(TalonSRX motor) {
-
-        return motor.getSelectedSensorPosition(0);
+    static final int encoderCountsPerRevolution = 1280;
+    public double getRotations(TalonSRX motor) {
+        return (double) motor.getSelectedSensorPosition(0) / encoderCountsPerRevolution;
     }
 
     /**
@@ -122,29 +142,46 @@ public class Drivetrain extends Subsystem {
      * It can move in 2D space and rotate.
      *
      * @param translate A vector representing the desired movement on a plane
-     * @param rotate    The amount of rotation desired (Positive is counter-clockwise)
+     * @param rotateIn  The amount of rotation desired (Positive is counter-clockwise)
      */
-    public void omniDrive(Vector2D translate, double rotate) {
+    public void omniDrive(Vector2D translate, double rotateIn) {
+        final double p = 1.0/150.0;
+        final double d = 1.0/400.0;
         SmartDashboard.putNumber("Translate X", translate.x);
         SmartDashboard.putNumber("Translate Y", translate.y);
-        SmartDashboard.putNumber("Rotate", rotate);
+        SmartDashboard.putNumber("Rotate", rotateIn);
         translate.mapSquareToDiamond().divide(Math.sqrt(2) / 2);
         double fr, fl, br, bl;
         fl = translate.dot(frontLeftVec);
         fr = translate.dot(frontRightVec);
         bl = translate.dot(backLeftVec);
         br = translate.dot(backRightVec);
-        SmartDashboard.putNumber("FL", fl);
-        SmartDashboard.putNumber("FR", fr);
-        SmartDashboard.putNumber("BL", bl);
-        SmartDashboard.putNumber("BR", br);
-        if (rotate != 0) {
-            fr = padValue(rotate, fr, false) + rotate;
-            br = padValue(rotate, br, false) + rotate;
-            fl = padValue(rotate, fl, false) - rotate;
-            bl = padValue(rotate, bl, false) - rotate;
+
+        double rotate = 0;
+        if(rotateIn != 0) {
+            resetTargetRot = 10;
+            rotate = -rotateIn;
         }
-        setMotorVoltage(fl, fr, bl ,br);
+        if(resetTargetRot > 0) {
+            targetRot = gyro.getAngle();
+            resetTargetRot--;
+        }
+        if(rotateIn == 0) {
+            double pTerm = resetTargetRot > 0 ? 0 : (gyro.getAngle() - targetRot) * p;
+            double dTerm = gyro.getRate() * d;
+            dTerm = Math.copySign(Math.max(0, Math.abs(dTerm) - 0.1), dTerm);
+            SmartDashboard.putNumberArray("PID TERMS", new double[]{pTerm, 0, dTerm});
+            rotate = pTerm + dTerm;
+            SmartDashboard.putNumber("rotate", rotate);
+            rotate = Math.max(-1, Math.min(rotate, 1));
+        }
+
+
+        fr = padValue(rotate, fr, false) + rotate;
+        br = padValue(rotate, br, false) + rotate;
+        fl = padValue(rotate, fl, false) - rotate;
+        bl = padValue(rotate, bl, false) - rotate;
+        setMotorVoltage(fl, fr, bl, br);
     }
 
     public void reset() {

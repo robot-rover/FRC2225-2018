@@ -1,6 +1,7 @@
 package org.usfirst.frc.team2225.season2018.roboRIO;
 
 import com.ctre.phoenix.motorcontrol.can.TalonSRX;
+import edu.wpi.first.wpilibj.ADXRS450_Gyro;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.GenericHID;
 import edu.wpi.first.wpilibj.IterativeRobot;
@@ -31,7 +32,8 @@ public class RoboRIOMain extends IterativeRobot {
                 new TalonSRX(Bindings.frontLeftTalon),
                 new TalonSRX(Bindings.frontRightTalon),
                 new TalonSRX(Bindings.backLeftTalon),
-                new TalonSRX(Bindings.backRightTalon)
+                new TalonSRX(Bindings.backRightTalon),
+                new ADXRS450_Gyro()
         );
         driverInput = new DriverInput();
         SmartDashboard.putData("Auto mode", chooser);
@@ -50,6 +52,8 @@ public class RoboRIOMain extends IterativeRobot {
     @Override
     public void disabledPeriodic() {
         Scheduler.getInstance().run();
+        /*SmartDashboard.putNumber("Motor Position", drivetrain.frontLeft.getSelectedSensorPosition(0));
+        SmartDashboard.putNumber("Motor Velocity", drivetrain.frontLeft.getSelectedSensorVelocity(0));*/
         //DriverStation.reportWarning("Joy Out: " + driverInput.getJoy().getY(GenericHID.Hand.kLeft) + ", " + driverInput.getJoy().getX(GenericHID.Hand.kLeft), false);
     }
 
@@ -91,6 +95,11 @@ public class RoboRIOMain extends IterativeRobot {
         this line or comment it out. */
         if (autonomousCommand != null)
             autonomousCommand.cancel();
+        drivetrain.frontLeft.setSelectedSensorPosition(0, 0, 0);
+        drivetrain.frontRight.setSelectedSensorPosition(0, 0, 0);
+        drivetrain.backLeft.setSelectedSensorPosition(0, 0, 0);
+        drivetrain.backRight.setSelectedSensorPosition(0, 0, 0);
+        drivetrain.gyro.reset();
     }
 
     /**
@@ -99,6 +108,11 @@ public class RoboRIOMain extends IterativeRobot {
     @Override
     public void teleopPeriodic() {
         Scheduler.getInstance().run();
+        int fl = drivetrain.frontLeft.getSelectedSensorPosition(0);
+        int fr = drivetrain.frontRight.getSelectedSensorPosition(0);
+        int bl = drivetrain.backLeft.getSelectedSensorPosition(0);
+        int br = drivetrain.backRight.getSelectedSensorPosition(0);
+        SmartDashboard.putNumberArray("Motor Position", new double[]{fl, fr, bl, br});
     }
 
     /**
