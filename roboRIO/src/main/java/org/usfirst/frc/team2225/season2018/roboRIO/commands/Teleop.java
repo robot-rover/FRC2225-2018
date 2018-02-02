@@ -17,7 +17,7 @@ public class Teleop extends Command {
         translate.x = signSquare(RoboRIOMain.driverInput.getJoy().getX(GenericHID.Hand.kLeft));
         translate.y = signSquare(-RoboRIOMain.driverInput.getJoy().getY(GenericHID.Hand.kLeft));
         double rotate = RoboRIOMain.driverInput.getJoy().getTriggerAxis(GenericHID.Hand.kRight) - RoboRIOMain.driverInput.getJoy().getTriggerAxis(GenericHID.Hand.kLeft);
-        RoboRIOMain.drivetrain.omniDrive(translate, rotate * rotate);
+        RoboRIOMain.drivetrain.omniDrive(translate, Math.copySign(rotate * rotate, rotate));
 
     }
 

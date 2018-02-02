@@ -1,21 +1,15 @@
 package org.usfirst.frc.team2225.season2018.jetson;
 
-import boofcv.abst.distort.FDistort;
-import boofcv.alg.color.ColorHsv;
-import boofcv.alg.filter.binary.BinaryImageOps;
-import boofcv.alg.filter.binary.Contour;
-import boofcv.alg.filter.binary.ThresholdImageOps;
-import boofcv.alg.filter.blur.BlurImageOps;
 import boofcv.struct.ConnectRule;
 import boofcv.struct.image.GrayF32;
 import boofcv.struct.image.GrayS32;
-import boofcv.struct.image.GrayU8;
+import boofcv.struct.image.InterleavedU8;
 import boofcv.struct.image.Planar;
+import georegression.struct.point.Point2D_I32;
 import org.jocl.*;
 import org.usfirst.frc.team2225.season2018.jetson.label.LabelNoContour;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.jocl.CL.*;
 
@@ -26,6 +20,7 @@ public class VisionPipeline {
     final static long deviceType = CL_DEVICE_TYPE_ALL;
     final static int deviceIndex = 0;
 
+    Shader interToPlanar;
     Shader combinedInit;
     Shader downThresh;
     Shader dilate4;
@@ -35,10 +30,7 @@ public class VisionPipeline {
     cl_context context;
     cl_command_queue commandQueue;
 
-    int scaleFactor;
-    int width;
-    int height;
-
+    cl_mem interleaved;
     cl_mem planarHsvImage[] = new cl_mem[3];
     cl_mem binBuff[] = new cl_mem[2];
 
@@ -48,16 +40,28 @@ public class VisionPipeline {
 
     GrayS32 binary;
     GrayS32 labeled;
+    LabelNoContour alg;
+    Point2D_I32 inputDimension;
+    Point2D_I32 scaledDimension;
+    int scaleFactor;
+    AtomicBoolean readLock;
+    AtomicBoolean writeLock;
 
+    BlobInfo[] results;
 
-    public VisionPipeline(int width, int height, int scaleFactor) {
+    public VisionPipeline(int inputWidth, int inputHeight, int scaleFactor, AtomicBoolean readLock, AtomicBoolean writeLock) {
+        inputDimension = new Point2D_I32(inputWidth, inputHeight);
+        if (scaleFactor % 2 != 0)
+            throw new RuntimeException("Odd scale factors are not supported");
         this.scaleFactor = scaleFactor;
-        this.width = width;
-        this.height = height;
+        scaledDimension = new Point2D_I32(inputWidth / scaleFactor, inputHeight / scaleFactor);
+        this.readLock = readLock;
+        this.writeLock = writeLock;
 
-        binary = new GrayS32(width / scaleFactor, height / scaleFactor);
-        labeled = new GrayS32(width / scaleFactor, height / scaleFactor);
-        // Switch from Error codes to Exceptions
+        binary = new GrayS32(scaledDimension.x, scaledDimension.y);
+        labeled = new GrayS32(scaledDimension.x, scaledDimension.y);
+        alg = new LabelNoContour(ConnectRule.FOUR);
+
         setExceptionsEnabled(true);
 
         // Obtain the number of OpenCL platforms
@@ -91,34 +95,46 @@ public class VisionPipeline {
 
         cl_queue_properties properties = new cl_queue_properties();
 
-        properties.addProperty(CL_QUEUE_PROPERTIES, CL_QUEUE_PROFILING_ENABLE);
+        //properties.addProperty(CL_QUEUE_PROPERTIES, CL_QUEUE_PROFILING_ENABLE);
 
         // Create a command-queue for the selected device
         commandQueue =
                 clCreateCommandQueueWithProperties(context, device, properties, null);
 
+        interleaved = clCreateBuffer(context, CL_MEM_READ_ONLY & CL_MEM_HOST_WRITE_ONLY,
+                Sizeof.cl_uchar * inputDimension.x * inputDimension.y * 3, null, null);
         for(int i = 0; i < 3; i++)
-            planarHsvImage[i] = clCreateBuffer(context, CL_MEM_USE_HOST_PTR,
-                    Sizeof.cl_float * width * height, Pointer.to(new float[width * height]), null);
+            planarHsvImage[i] = clCreateBuffer(context, 0L,
+                    Sizeof.cl_float * inputDimension.x * inputDimension.y, null, null);
         for(int i = 0; i < 2; i++)
-            binBuff[i] = clCreateBuffer(context, CL_MEM_USE_HOST_PTR,
-                    Sizeof.cl_float * width * height / scaleFactor / scaleFactor, Pointer.to(new float[width * height / scaleFactor / scaleFactor]), null);
+            binBuff[i] = clCreateBuffer(context, 0L,
+                    Sizeof.cl_float * scaledDimension.x * scaledDimension.y, null, null);
 
+        interToPlanar = new Shader("interToPlanar", context);
         combinedInit = new Shader("combinedInit", context);
         downThresh = new Shader("scaleThresh", context);
-        /*dilate4 = new Shader("dilate4", context);
-        erode4 = new Shader("erode4", context);*/
         blurMeanBin = new Shader("blurMeanBin", context);
 
-        setKernelArgs(width, height);
-
-        global_work_size = new long[]{width * height};
-        global_work_size_scaled = new long[]{global_work_size[0] / scaleFactor};
+        global_work_size = new long[]{inputDimension.x * inputDimension.y};
+        global_work_size_scaled = new long[]{scaledDimension.x * scaledDimension.y};
         local_work_size = new long[]{64};
+
+        setKernelArgs();
     }
 
-    private void setKernelArgs(int imageWidth, int imageHeight) {
-        int imageLength = imageWidth * imageHeight;
+    private void setKernelArgs() {
+        // Set the arguments for the rgb2Hsv kernel
+        clSetKernelArg(interToPlanar.kernel, 0,
+                Sizeof.cl_mem, Pointer.to(interleaved));
+        clSetKernelArg(interToPlanar.kernel, 1,
+                Sizeof.cl_mem, Pointer.to(planarHsvImage[0]));
+        clSetKernelArg(interToPlanar.kernel, 2,
+                Sizeof.cl_mem, Pointer.to(planarHsvImage[1]));
+        clSetKernelArg(interToPlanar.kernel, 3,
+                Sizeof.cl_mem, Pointer.to(planarHsvImage[2]));
+        clSetKernelArg(interToPlanar.kernel, 4,
+                Sizeof.cl_int, Pointer.to(new int[]{inputDimension.x * inputDimension.y}));
+
         // Set the arguments for the rgb2Hsv kernel
         clSetKernelArg(combinedInit.kernel, 0,
                 Sizeof.cl_mem, Pointer.to(planarHsvImage[0]));
@@ -127,7 +143,7 @@ public class VisionPipeline {
         clSetKernelArg(combinedInit.kernel, 2,
                 Sizeof.cl_mem, Pointer.to(planarHsvImage[2]));
         clSetKernelArg(combinedInit.kernel, 3,
-                Sizeof.cl_int, Pointer.to(new int[]{imageLength}));
+                Sizeof.cl_int, Pointer.to(new int[]{inputDimension.x * inputDimension.y}));
 
         // Set the arguments for the downscale kernel
         clSetKernelArg(downThresh.kernel, 0,
@@ -137,15 +153,13 @@ public class VisionPipeline {
         clSetKernelArg(downThresh.kernel, 2,
                 Sizeof.cl_int, Pointer.to(new int[]{scaleFactor}));
         clSetKernelArg(downThresh.kernel, 3,
-                Sizeof.cl_int, Pointer.to(new int[]{width}));
+                Sizeof.cl_int, Pointer.to(new int[]{inputDimension.x}));
         clSetKernelArg(downThresh.kernel, 4,
-                Sizeof.cl_int, Pointer.to(new int[]{height}));
+                Sizeof.cl_int, Pointer.to(new int[]{inputDimension.y}));
         clSetKernelArg(downThresh.kernel, 5,
                 Sizeof.cl_float, Pointer.to(new float[]{100f}));
         clSetKernelArg(downThresh.kernel, 6,
                 Sizeof.cl_int, Pointer.to(new int[]{0}));
-
-        int scaledLength = imageLength / scaleFactor / scaleFactor;
 
         // Set the arguments for the kernel
         clSetKernelArg(blurMeanBin.kernel, 0,
@@ -153,90 +167,41 @@ public class VisionPipeline {
         clSetKernelArg(blurMeanBin.kernel, 1,
                 Sizeof.cl_mem, Pointer.to(binBuff[1]));
         clSetKernelArg(blurMeanBin.kernel, 2,
-                Sizeof.cl_int, Pointer.to(new int[]{imageWidth / scaleFactor}));
+                Sizeof.cl_int, Pointer.to(new int[]{scaledDimension.x}));
         clSetKernelArg(blurMeanBin.kernel, 3,
-                Sizeof.cl_int, Pointer.to(new int[]{imageHeight / scaleFactor}));
+                Sizeof.cl_int, Pointer.to(new int[]{scaledDimension.y}));
         clSetKernelArg(blurMeanBin.kernel, 4,
-                Sizeof.cl_int, Pointer.to(new int[]{6}));
+                Sizeof.cl_int, Pointer.to(new int[]{10}));
     }
 
-    public BlobInfo[] process(Planar<GrayF32> image) {
-        cl_event[] events = new cl_event[5];
-        for(int i = 0; i < events.length; i++)
-            events[i] = null;
-        //long one = System.currentTimeMillis();
-        for(int i = 0; i < 3; i++)
-            clEnqueueWriteBuffer(commandQueue, planarHsvImage[i], true, 0, Sizeof.cl_float * image.bands[i].data.length,
-                    Pointer.to(image.bands[i].data), 0, null, events[0]);
-        //long two = System.currentTimeMillis();
+    /**
+     * Set readLock and writeLock to true before calling this method
+     * @param input
+     */
+    public void process(InterleavedU8 input) {
+        if(!readLock.get() || !writeLock.get())
+            throw new IllegalStateException("Must set readLock and writeLock to true before calling VisionPipeline#process()");
+        clEnqueueWriteBuffer(commandQueue, interleaved, true, 0, Sizeof.cl_uchar * input.data.length,
+                Pointer.to(input.data), 0, null, null);
+
+        synchronized (readLock) {
+            readLock.set(false);
+            readLock.notifyAll();
+        }
+
+        clEnqueueNDRangeKernel(commandQueue, interToPlanar.kernel, 1, null,
+                global_work_size, local_work_size, 0, null, null);
         clEnqueueNDRangeKernel(commandQueue, combinedInit.kernel, 1, null,
-                global_work_size, local_work_size, 0, null, events[1]);
+                global_work_size, local_work_size, 0, null, null);
         clEnqueueNDRangeKernel(commandQueue, downThresh.kernel, 1, null,
-                global_work_size_scaled, local_work_size, 0, null, events[2]);
+                global_work_size_scaled, local_work_size, 0, null, null);
         clEnqueueNDRangeKernel(commandQueue, blurMeanBin.kernel, 1, null,
-                global_work_size_scaled, local_work_size, 0, null, events[3]);
+                global_work_size_scaled, local_work_size, 0, null, null);
         clEnqueueReadBuffer(commandQueue, binBuff[1], true, 0,
-                Sizeof.cl_float * binary.data.length, Pointer.to(binary.data), 0, null, events[4]);
+                Sizeof.cl_float * binary.data.length, Pointer.to(binary.data), 0, null, null);
         clFinish(commandQueue);
-        //long three = System.currentTimeMillis();
-        LabelNoContour alg = new LabelNoContour(ConnectRule.FOUR);
         int size = alg.process(binary, labeled);
-        BlobInfo[] results = getBlobInfo(labeled, size);
-        /*long four = System.currentTimeMillis();
-        System.out.println("Buffer Write: " + (two - one));
-        System.out.println("Process and Read: " + (three - two));
-        System.out.println("Component Labelling: " + (four - three));
-        for(int i = 0; i < events.length; i++) {
-            long[] queued = new long[1];
-            clGetEventProfilingInfo(events[i], CL_PROFILING_COMMAND_QUEUED, Sizeof.cl_ulong, Pointer.to(queued), null);
-            long[] submit = new long[1];
-            clGetEventProfilingInfo(events[i], CL_PROFILING_COMMAND_SUBMIT, Sizeof.cl_ulong, Pointer.to(submit), null);
-            long[] start = new long[1];
-            clGetEventProfilingInfo(events[i], CL_PROFILING_COMMAND_START, Sizeof.cl_ulong, Pointer.to(start), null);
-            long[] end = new long[1];
-            clGetEventProfilingInfo(events[i], CL_PROFILING_COMMAND_END, Sizeof.cl_ulong, Pointer.to(end), null);
-            System.out.println(getShaderName(i) + ": Queued -- " + String.format("%10d", (submit[0] - queued[0])) + " -> Submit -- " + String.format("%8d", (start[0] - submit[0])) + " -> Start -- " + String.format("%8d", (end[0] - start[0])) + " -> End");
-        }
-        System.exit(0);*/
-
-        return results;
-    }
-
-    private String getShaderName(int index) {
-        switch (index) {
-            case 0: return "Buffer Write";
-            case 1: return "combinedInit";
-            case 2: return "scaleThresh ";
-            case 3: return "blurMeanBin ";
-            case 4: return "Buffer Read ";
-            default: return "UNKNOWN    ";
-        }
-    }
-
-    public GrayS32 getLabeled() {
-        return labeled;
-    }
-
-    public GrayS32 getBinaryBuff(int index) {
-        GrayS32 image = new GrayS32(width / scaleFactor, height / scaleFactor);
-            clEnqueueReadBuffer(commandQueue, binBuff[index], true, 0,
-                    Sizeof.cl_int * width * height / scaleFactor / scaleFactor, Pointer.to(image.data), 0, null, null);
-        return image;
-    }
-
-    public GrayF32 getDownBuff(int index) {
-        GrayF32 image = new GrayF32(width / scaleFactor, height / scaleFactor);
-        clEnqueueReadBuffer(commandQueue, binBuff[index], true, 0,
-                Sizeof.cl_float * width * height / scaleFactor / scaleFactor, Pointer.to(image.data), 0, null, null);
-        return image;
-    }
-
-    public Planar<GrayF32> getPlanar() {
-        Planar<GrayF32> image = new Planar<>(GrayF32.class, width, height, 3);
-        for(int i = 0; i < 3; i++)
-            clEnqueueReadBuffer(commandQueue, planarHsvImage[i], true, 0,
-                Sizeof.cl_float * width * height, Pointer.to(image.bands[i].data), 0, null, null);
-        return image;
+        results = getBlobInfo(labeled, size);
     }
 
     public static BlobInfo[] getBlobInfo(GrayS32 labelImage, int numLabels) {
@@ -267,7 +232,26 @@ public class VisionPipeline {
         return result;
     }
 
-    public static float clamp(float val, float min, float max) {
-        return Math.max(min, Math.min(max, val));
+    public BlobInfo[] getResults() {
+        return results;
+    }
+
+    public GrayS32 getBinaryBuff(int index) {
+        GrayS32 image = new GrayS32(scaledDimension.x, scaledDimension.y);
+        clEnqueueReadBuffer(commandQueue, binBuff[index], true, 0,
+                Sizeof.cl_int * scaledDimension.x * scaledDimension.y, Pointer.to(image.data), 0, null, null);
+        return image;
+    }
+
+    public Planar<GrayF32> getPlanar() {
+        Planar<GrayF32> image = new Planar<>(GrayF32.class, inputDimension.x, inputDimension.y, 3);
+        for(int i = 0; i < 3; i++)
+            clEnqueueReadBuffer(commandQueue, planarHsvImage[i], true, 0,
+                    Sizeof.cl_float * inputDimension.x * inputDimension.y, Pointer.to(image.bands[i].data), 0, null, null);
+        return image;
+    }
+
+    public GrayS32 getBinary() {
+        return binary;
     }
 }

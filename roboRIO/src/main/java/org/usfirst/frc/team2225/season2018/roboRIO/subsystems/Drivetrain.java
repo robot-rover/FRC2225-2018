@@ -60,6 +60,22 @@ public class Drivetrain extends Subsystem {
     @Override
     public void periodic() {
         SmartDashboard.putNumberArray("Gyro Reading", new double[]{gyro.getAngle(), gyro.getRate()});
+        double fr, fl, br, bl;
+        fl = frontLeft.getSelectedSensorPosition(0);
+        fr = frontRight.getSelectedSensorPosition(0);
+        bl = backLeft.getSelectedSensorPosition(0);
+        br = backRight.getSelectedSensorPosition(0);
+        SmartDashboard.putNumberArray("Motor Position", new double[]{fr, fl, br, bl});
+        fl = frontLeft.getMotorOutputPercent();
+        fr = frontRight.getMotorOutputPercent();
+        bl = backLeft.getMotorOutputPercent();
+        br = backRight.getMotorOutputPercent();
+        SmartDashboard.putNumberArray("Motor Output", new double[]{fr, fl, br, bl});
+        fl = frontLeft.getSelectedSensorVelocity(0);
+        fr = frontRight.getSelectedSensorVelocity(0);
+        bl = backLeft.getSelectedSensorVelocity(0);
+        br = backRight.getSelectedSensorVelocity(0);
+        SmartDashboard.putNumberArray("Motor Velocity", new double[]{fr, fl, br, bl});
     }
 
     public static double padValue(double pad, double value, boolean includePad) {
@@ -96,6 +112,7 @@ public class Drivetrain extends Subsystem {
         left += map.x;
         right -= map.x;
         setMotorVoltage(left, right, left, right);
+        reset();
     }
 
     /**
@@ -112,10 +129,6 @@ public class Drivetrain extends Subsystem {
         frontRight.set(ControlMode.PercentOutput, fr);
         backLeft.set(ControlMode.PercentOutput, bl);
         backRight.set(ControlMode.PercentOutput, br);
-        SmartDashboard.putNumber("FL", frontLeft.getSelectedSensorVelocity(0));
-        SmartDashboard.putNumber("FR", frontRight.getSelectedSensorVelocity(0));
-        SmartDashboard.putNumber("BL", backLeft.getSelectedSensorVelocity(0));
-        SmartDashboard.putNumber("BR", backRight.getSelectedSensorVelocity(0));
     }
 
     static final int maxMotorSpeed = 600;
@@ -126,10 +139,6 @@ public class Drivetrain extends Subsystem {
         frontRight.set(ControlMode.Velocity, fr * maxMotorSpeed);
         backLeft.set(ControlMode.Velocity, bl * maxMotorSpeed);
         backRight.set(ControlMode.Velocity, br * maxMotorSpeed);
-        SmartDashboard.putNumber("FL", frontLeft.getSelectedSensorVelocity(0));
-        SmartDashboard.putNumber("FR", frontRight.getSelectedSensorVelocity(0));
-        SmartDashboard.putNumber("BL", backLeft.getSelectedSensorVelocity(0));
-        SmartDashboard.putNumber("BR", backRight.getSelectedSensorVelocity(0));
     }
 
     static final int encoderCountsPerRevolution = 1280;
@@ -147,9 +156,6 @@ public class Drivetrain extends Subsystem {
     public void omniDrive(Vector2D translate, double rotateIn) {
         final double p = 1.0/150.0;
         final double d = 1.0/400.0;
-        SmartDashboard.putNumber("Translate X", translate.x);
-        SmartDashboard.putNumber("Translate Y", translate.y);
-        SmartDashboard.putNumber("Rotate", rotateIn);
         translate.mapSquareToDiamond().divide(Math.sqrt(2) / 2);
         double fr, fl, br, bl;
         fl = translate.dot(frontLeftVec);
@@ -170,9 +176,7 @@ public class Drivetrain extends Subsystem {
             double pTerm = resetTargetRot > 0 ? 0 : (gyro.getAngle() - targetRot) * p;
             double dTerm = gyro.getRate() * d;
             dTerm = Math.copySign(Math.max(0, Math.abs(dTerm) - 0.1), dTerm);
-            SmartDashboard.putNumberArray("PID TERMS", new double[]{pTerm, 0, dTerm});
             rotate = pTerm + dTerm;
-            SmartDashboard.putNumber("rotate", rotate);
             rotate = Math.max(-1, Math.min(rotate, 1));
         }
 
@@ -181,10 +185,12 @@ public class Drivetrain extends Subsystem {
         br = padValue(rotate, br, false) + rotate;
         fl = padValue(rotate, fl, false) - rotate;
         bl = padValue(rotate, bl, false) - rotate;
-        setMotorVoltage(fl, fr, bl, br);
+        setMotorVelocity(fl, fr, bl, br);
     }
 
     public void reset() {
         setMotorVoltage(0, 0, 0, 0);
+        gyro.reset();
+        targetRot = 0;
     }
 }

@@ -11,12 +11,17 @@ import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.usfirst.frc.team2225.season2018.roboRIO.commands.Teleop;
 import org.usfirst.frc.team2225.season2018.roboRIO.subsystems.DriverInput;
 import org.usfirst.frc.team2225.season2018.roboRIO.subsystems.Drivetrain;
+import org.usfirst.frc.team2225.season2018.roboRIO.subsystems.Lifter;
+import org.usfirst.frc.team2225.season2018.roboRIO.subsystems.Sucker;
 
 public class RoboRIOMain extends IterativeRobot {
     public static Drivetrain drivetrain;
     public static DriverInput driverInput;
+    public static Sucker sucker;
+    public static Lifter lifter;
     private static Logger log = LoggerFactory.getLogger(RoboRIOMain.class);
     Command autonomousCommand;
     SendableChooser<Command> chooser = new SendableChooser<>();
@@ -34,6 +39,14 @@ public class RoboRIOMain extends IterativeRobot {
                 new TalonSRX(Bindings.backLeftTalon),
                 new TalonSRX(Bindings.backRightTalon),
                 new ADXRS450_Gyro()
+        );
+        lifter = new Lifter(
+                new TalonSRX(Bindings.leftLifterTalon),
+                new TalonSRX(Bindings.rightLifterTalon)
+        );
+        sucker = new Sucker(
+                new TalonSRX(Bindings.leftSuckerTalon),
+                new TalonSRX(Bindings.rightSuckerTalon)
         );
         driverInput = new DriverInput();
         SmartDashboard.putData("Auto mode", chooser);
@@ -99,7 +112,7 @@ public class RoboRIOMain extends IterativeRobot {
         drivetrain.frontRight.setSelectedSensorPosition(0, 0, 0);
         drivetrain.backLeft.setSelectedSensorPosition(0, 0, 0);
         drivetrain.backRight.setSelectedSensorPosition(0, 0, 0);
-        drivetrain.gyro.reset();
+        drivetrain.reset();
     }
 
     /**
@@ -108,11 +121,6 @@ public class RoboRIOMain extends IterativeRobot {
     @Override
     public void teleopPeriodic() {
         Scheduler.getInstance().run();
-        int fl = drivetrain.frontLeft.getSelectedSensorPosition(0);
-        int fr = drivetrain.frontRight.getSelectedSensorPosition(0);
-        int bl = drivetrain.backLeft.getSelectedSensorPosition(0);
-        int br = drivetrain.backRight.getSelectedSensorPosition(0);
-        SmartDashboard.putNumberArray("Motor Position", new double[]{fl, fr, bl, br});
     }
 
     /**

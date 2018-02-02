@@ -3,11 +3,11 @@ apply plugin: 'jaci.gradle.EmbeddedTools'
 deploy {
     targets {
         target("jetson") {
-            addresses << '' //todo: Set jetson properties
-            user = ''
-            password = ''
-            directory = ''       // Note: must be an absolute path
-            failOnMissing = false   // Just in case our coprocessor is missing. Optional.
+            addresses << '10.42.0.186' //todo: Set jetson properties
+            user = 'nvidia'
+            password = 'nvidia'
+            directory = '/home/nvidia/'       // Note: must be an absolute path
+            failOnMissing = true   // Just in case our coprocessor is missing. Optional.
         }
     }
     artifacts {
@@ -27,12 +27,14 @@ dependencies {
     compile group: 'org.boofcv', name: 'boofcv-core', version: '0.27'
     compile 'org.jocl:jocl:2.0.0'
     testCompile group: 'org.boofcv', name: 'boofcv-swing', version: '0.27'
+    compile group: 'org.boofcv', name: 'WebcamCapture', version: '0.26'
+
 }
 
 jar {
     from configurations.compile.collect { it.isDirectory() ? it : zipTree(it) }
     // I need to set my manifest up so the coprocessor knows where my main class is
     manifest {
-        attributes 'Main-Class': 'gradlerio.CoprocessorExample'
+        attributes 'Main-Class': 'org.usfirst.frc.team2225.season2018.jetson.CoprocessorExample'
     }
 }

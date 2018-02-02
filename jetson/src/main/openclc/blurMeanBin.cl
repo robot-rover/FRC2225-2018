@@ -20,8 +20,8 @@ __kernel void blurMeanBin(__global int *src, __global int *dst, const int width,
                 mean = mean + src[getPixel(x, y, width, height)];
             }
         }
-        mean = mean / radius / radius;
-        if(mean > 0.5) {
+        mean = mean / (2*radius + 1) / (2*radius+1);
+        if(mean > 0.81) {
             dst[gid] = 1;
         } else {
             dst[gid] = 0;

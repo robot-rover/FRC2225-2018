@@ -5,6 +5,10 @@ public class Bindings {
     public static final int frontRightTalon = 2;
     public static final int backLeftTalon = 5;
     public static final int backRightTalon = 4;
+    public static final int leftSuckerTalon = 0;
+    public static final int rightSuckerTalon = 0;
+    public static final int leftLifterTalon = 0;
+    public static final int rightLifterTalon = 0;
 
     private Bindings() {
     }

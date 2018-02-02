@@ -37,7 +37,7 @@ __kernel void combinedInit(__global float *rh, __global float *gs, __global floa
         // Begin hue
 
         float sqr = hue - 1.07f;
-        sqr = fabs((float)sqr) - 0.5f;
+        sqr = fabs((float)sqr) - 0.3f;
         sqr = max(sqr, 0.0f);
         sqr = sqrt(sqr);
         float sVal = 0.5f - sat;
