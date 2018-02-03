@@ -1,19 +1,23 @@
 import boofcv.alg.color.ColorHsv;
-import boofcv.core.image.ConvertImage;
 import boofcv.gui.ListDisplayPanel;
 import boofcv.gui.binary.VisualizeBinaryData;
 import boofcv.gui.image.ShowImages;
 import boofcv.io.image.ConvertBufferedImage;
 import boofcv.io.image.UtilImageIO;
-import boofcv.io.webcamcapture.UtilWebcamCapture;
-import boofcv.struct.image.*;
-import com.github.sarxos.webcam.Webcam;
+import boofcv.struct.image.GrayF32;
+import boofcv.struct.image.GrayS32;
+import boofcv.struct.image.GrayU8;
+import boofcv.struct.image.Planar;
+import jcuda.Pointer;
+import org.bytedeco.javacv.OpenCVFrameGrabber;
+import org.bytedeco.javacv.OpenCVFrameRecorder;
 import org.usfirst.frc.team2225.season2018.jetson.BlobInfo;
 import org.usfirst.frc.team2225.season2018.jetson.VisionPipeline;
-import org.usfirst.frc.team2225.season2018.jetson.VisionPipelineOld;
 
 import java.awt.*;
 import java.awt.image.BufferedImage;
+import java.io.IOException;
+import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
@@ -48,23 +52,32 @@ public class ExampleFitPolygon {
 
     static List<Planar<GrayF32>> images;
 
-    public static void main( String args[] ) {
+    public static void main( String args[] ) throws IOException {
         /*loadImages();
         testPerformance();*/
         testWebcamPerformance();
         //testImages();
         testWebcam();
+        System.out.println("Done");
     }
 
     @SuppressWarnings("Duplicates")
-    public static void testWebcamPerformance() {
-        AtomicBoolean readLock = new AtomicBoolean(false);
-        AtomicBoolean processLock = new AtomicBoolean(false);
+    public static void testWebcamPerformance() throws IOException {
+
+        final AtomicBoolean readLock = new AtomicBoolean(false);
+        final AtomicBoolean processLock = new AtomicBoolean(false);
         VisionPipeline pipeline = new VisionPipeline(640, 480, 2, readLock, processLock);
-        Webcam cam = UtilWebcamCapture.openDevice("Microsoft® LifeCam HD-3000", 640, 480);
+        OpenCVFrameGrabber grabber = new OpenCVFrameGrabber(1);
+        grabber.start();
+        System.out.println("Framerate: " + grabber.getFrameRate());
+        long dur = System.currentTimeMillis();
+        for(int i = 0; i < 60; i++) {
+            grabber.grab();
+        }
+        dur = System.currentTimeMillis() - dur;
+        System.out.println("Time for 60 frames: " + dur + "ms, Average Time per Op: " + (dur / 60.0) + "ms, FPS: " + (1/(dur / 60.0) * 1000) + " fps.");
+        ByteBuffer image = (ByteBuffer) grabber.grab().image[0];
         ThreadPoolExecutor pool = new ThreadPoolExecutor(1, 1, 0, TimeUnit.MILLISECONDS, new ArrayBlockingQueue<>(1));
-        InterleavedU8 interleavedU8 = new InterleavedU8(640, 480, 3);
-        ByteBuffer buff = ByteBuffer.wrap(interleavedU8.data);
         System.out.println("Starting Performance Test");
         long startTime = System.currentTimeMillis();
         for(int i = 0; i < 50; i++) {
@@ -75,8 +88,10 @@ public class ExampleFitPolygon {
                     } catch (InterruptedException e) {}
                 }
             }
-            readLock.set(true);
-            cam.getImageBytes(buff);
+            long one = System.currentTimeMillis();
+            grabber.grab();
+            long two = System.currentTimeMillis() - one;
+            System.out.println("Image Acquisition: " + two);
             synchronized (processLock) {
                 while (processLock.get()) {
                     try {
@@ -84,9 +99,13 @@ public class ExampleFitPolygon {
                     } catch (InterruptedException e) {}
                 }
             }
+            readLock.set(true);
             processLock.set(true);
             pool.execute(() -> {
-                pipeline.process(interleavedU8);
+                long three = System.currentTimeMillis();
+                pipeline.process(Pointer.to(image));
+                long four = System.currentTimeMillis() - three;
+                System.out.println("Image processing: " + four);
                 synchronized (processLock) {
                     processLock.set(false);
                     processLock.notifyAll();
@@ -98,42 +117,42 @@ public class ExampleFitPolygon {
         double average = total / (double)(50);
         double fps = 1/average * 1000;
         System.out.println("Total Execution Time: " + total + "ms, Average Time per Op: " + average + "ms, FPS: " + fps + " fps.");
-        cam.close();
+        grabber.stop();
     }
 
-    public static void testWebcam() {
+    public static void testWebcam() throws IOException {
         ShowImages.showWindow(gui, "Polygon from Contour", true);
         AtomicBoolean readLock = new AtomicBoolean(false);
         AtomicBoolean processLock = new AtomicBoolean(false);
         VisionPipeline pipeline = new VisionPipeline(640, 480, 2, readLock, processLock);
         System.out.println("Opening Webcam");
-        Webcam cam = UtilWebcamCapture.openDevice("Microsoft® LifeCam HD-3000", 640, 480);
+        OpenCVFrameGrabber grabber = new OpenCVFrameGrabber(1);
+        grabber.start();
+        ByteBuffer image = (ByteBuffer) grabber.grab().image[0];
         ThreadPoolExecutor pool = new ThreadPoolExecutor(1, 1, 0, TimeUnit.MILLISECONDS, new ArrayBlockingQueue<>(1));
         while(true) {
             synchronized (readLock) {
                 while (readLock.get()) {
-                    System.out.println("read waiting");
                     try {
                         readLock.wait(1000);
                     } catch (InterruptedException e) {}
                 }
             }
-            readLock.set(true);
-            InterleavedU8 interleavedU8 = new InterleavedU8(640, 480, 3);
-            ByteBuffer buff = ByteBuffer.wrap(interleavedU8.data);
-            cam.getImageBytes(buff);
+            grabber.grab();
             synchronized (processLock) {
                 while (processLock.get()) {
-                    System.out.println("process waiting");
                     try {
                         processLock.wait(1000);
                     } catch (InterruptedException e) {}
                 }
             }
+            readLock.set(true);
             processLock.set(true);
             pool.execute(() -> {
-                pipeline.process(interleavedU8);
+                pipeline.process(Pointer.to(image));
                 BlobInfo[] clusters = pipeline.getResults();
+                Planar<GrayU8> planar = pipeline.getPlanar();
+                GrayF32 floatImage = pipeline.getFloatImage();
                 GrayS32 in = pipeline.getBinaryBuff(1);
                 GrayU8 bin = new GrayU8(in.width, in.height);
                 for(int i = 0; i < in.data.length; i++)
@@ -148,7 +167,11 @@ public class ExampleFitPolygon {
                 }
                 g.dispose();
                 gui.reset();
-                gui.addImage(out, "binary");
+                for(int i = 0; i < 3; i++)
+                    gui.addImage(planar.bands[i], "Color band " + i);
+                gui.addImage(planar, "Color");
+                gui.addImage(floatImage, "floats");
+                gui.addImage(out, "Binary");
                 synchronized (processLock) {
                     processLock.set(false);
                     processLock.notifyAll();
@@ -197,7 +220,7 @@ public class ExampleFitPolygon {
         ColorHsv.rgbToHsv_F32(images.get(0), images.get(0));
         for(int i = 0; i < hsv.bands[0].data.length; i++) {
             float sqr = Math.max(Math.abs(hsv.bands[0].data[i] - 1.07f)-0.50f, 0);
-            hsv.bands[0].data[i] = VisionPipelineOld.clamp(5/((float)Math.sqrt(sqr) - 100 * Math.max(0, 0.5f - hsv.bands[1].data[i])), 0f, 255f);
+            hsv.bands[0].data[i] = clamp(5/((float)Math.sqrt(sqr) - 100 * Math.max(0, 0.5f - hsv.bands[1].data[i])), 0f, 255f);
         }
         gui.addImage(images.get(0), "Real");
 
@@ -214,6 +237,10 @@ public class ExampleFitPolygon {
             System.out.println("Run");
         }
         System.exit(0);
+    }
+
+    private static float clamp(float val, float max, float min) {
+        return Math.max(min, Math.min(max, val));
     }
 
     public static void runGui() {

@@ -1,24 +1,22 @@
 package org.usfirst.frc.team2225.season2018.jetson;
 
 import boofcv.struct.ConnectRule;
-import boofcv.struct.image.GrayF32;
-import boofcv.struct.image.GrayS32;
-import boofcv.struct.image.InterleavedU8;
-import boofcv.struct.image.Planar;
+import boofcv.struct.image.*;
 import georegression.struct.point.Point2D_I32;
-import org.jocl.*;
+import jcuda.Pointer;
+import jcuda.Sizeof;
+import jcuda.driver.CUcontext;
+import jcuda.driver.CUdevice;
+import jcuda.driver.CUdeviceptr;
 import org.usfirst.frc.team2225.season2018.jetson.label.LabelNoContour;
 
+import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import static org.jocl.CL.*;
+import static jcuda.driver.JCudaDriver.*;
 
 public class VisionPipeline {
     final static float color = 1.07f;
-
-    final static int platformIndex = 0;
-    final static long deviceType = CL_DEVICE_TYPE_ALL;
-    final static int deviceIndex = 0;
 
     Shader interToPlanar;
     Shader combinedInit;
@@ -27,16 +25,17 @@ public class VisionPipeline {
     Shader erode4;
     Shader blurMeanBin;
 
-    cl_context context;
-    cl_command_queue commandQueue;
+    CUcontext pctx;
+    CUdevice dev;
 
-    cl_mem interleaved;
-    cl_mem planarHsvImage[] = new cl_mem[3];
-    cl_mem binBuff[] = new cl_mem[2];
+    CUdeviceptr interleaved;
+    CUdeviceptr floatImage;
+    CUdeviceptr planarHsvImage[] = new CUdeviceptr[3];
+    CUdeviceptr binBuff[] = new CUdeviceptr[2];
 
-    long[] global_work_size;
-    long[] global_work_size_scaled;
-    long[] local_work_size;
+    int global_work_size;
+    int global_work_size_scaled;
+    int local_work_size;
 
     GrayS32 binary;
     GrayS32 labeled;
@@ -44,19 +43,28 @@ public class VisionPipeline {
     Point2D_I32 inputDimension;
     Point2D_I32 scaledDimension;
     int scaleFactor;
-    AtomicBoolean readLock;
-    AtomicBoolean writeLock;
 
     BlobInfo[] results;
 
-    public VisionPipeline(int inputWidth, int inputHeight, int scaleFactor, AtomicBoolean readLock, AtomicBoolean writeLock) {
+    final boolean async;
+    final AtomicBoolean readLock;
+    final AtomicBoolean processLock;
+
+    public VisionPipeline(int inputWidth, int inputHeight, int scaleFactor, AtomicBoolean readLock, AtomicBoolean processLock) throws IOException {
+        if(readLock == null || processLock == null) {
+            async = false;
+            this.processLock = null;
+            this.readLock = null;
+        } else {
+            async = true;
+            this.readLock = readLock;
+            this.processLock = processLock;
+        }
         inputDimension = new Point2D_I32(inputWidth, inputHeight);
         if (scaleFactor % 2 != 0)
             throw new RuntimeException("Odd scale factors are not supported");
         this.scaleFactor = scaleFactor;
         scaledDimension = new Point2D_I32(inputWidth / scaleFactor, inputHeight / scaleFactor);
-        this.readLock = readLock;
-        this.writeLock = writeLock;
 
         binary = new GrayS32(scaledDimension.x, scaledDimension.y);
         labeled = new GrayS32(scaledDimension.x, scaledDimension.y);
@@ -64,144 +72,125 @@ public class VisionPipeline {
 
         setExceptionsEnabled(true);
 
-        // Obtain the number of OpenCL platforms
-        int numPlatformsArray[] = new int[1];
-        clGetPlatformIDs(0, null, numPlatformsArray);
-        int numPlatforms = numPlatformsArray[0];
+        cuInit(0);
+        pctx = new CUcontext();
+        dev = new CUdevice();
+        cuDeviceGet(dev, 0);
+        byte[] nameBytes = new byte[20];
+        cuDeviceGetName(nameBytes, 20, dev);
+        System.out.println(new String(nameBytes));
+        cuCtxCreate(pctx, 0, dev);
 
-        // Obtain a platform ID
-        cl_platform_id platforms[] = new cl_platform_id[numPlatforms];
-        clGetPlatformIDs(platforms.length, platforms, null);
-        cl_platform_id platform = platforms[platformIndex];
+        interleaved = new CUdeviceptr();
+        cuMemAlloc(interleaved, Sizeof.BYTE * inputDimension.x * inputDimension.y * 3);
+        floatImage = new CUdeviceptr();
+        cuMemAlloc(floatImage, Sizeof.FLOAT * inputDimension.x * inputDimension.y * 3);
+        for(int i = 0; i < 3; i++) {
+            planarHsvImage[i] = new CUdeviceptr();
+            cuMemAlloc(planarHsvImage[i], Sizeof.FLOAT * inputDimension.x * inputDimension.y);
+        }
+        for(int i = 0; i < 2; i++) {
+            binBuff[i] = new CUdeviceptr();
+            cuMemAlloc(binBuff[i], Sizeof.FLOAT * scaledDimension.x * scaledDimension.y);
+        }
 
-        // Initialize the context properties
-        cl_context_properties contextProperties = new cl_context_properties();
-        contextProperties.addProperty(CL_CONTEXT_PLATFORM, platform);
+        interToPlanar = new Shader("interToPlanar", true);
+        combinedInit = new Shader("combinedInit", true);
+        downThresh = new Shader("scaleThresh", true);
+        blurMeanBin = new Shader("blurMeanBin", true);
 
-        // Obtain the number of devices for the platform
-        int numDevicesArray[] = new int[1];
-        clGetDeviceIDs(platform, deviceType, 0, null, numDevicesArray);
-        int numDevices = numDevicesArray[0];
-
-        // Obtain a device ID
-        cl_device_id devices[] = new cl_device_id[numDevices];
-        clGetDeviceIDs(platform, deviceType, numDevices, devices, null);
-        cl_device_id device = devices[deviceIndex];
-
-        // Create a context for the selected device
-        context = clCreateContext(
-                contextProperties, 1, new cl_device_id[]{device},
-                null, null, null);
-
-        cl_queue_properties properties = new cl_queue_properties();
-
-        //properties.addProperty(CL_QUEUE_PROPERTIES, CL_QUEUE_PROFILING_ENABLE);
-
-        // Create a command-queue for the selected device
-        commandQueue =
-                clCreateCommandQueueWithProperties(context, device, properties, null);
-
-        interleaved = clCreateBuffer(context, CL_MEM_READ_ONLY & CL_MEM_HOST_WRITE_ONLY,
-                Sizeof.cl_uchar * inputDimension.x * inputDimension.y * 3, null, null);
-        for(int i = 0; i < 3; i++)
-            planarHsvImage[i] = clCreateBuffer(context, 0L,
-                    Sizeof.cl_float * inputDimension.x * inputDimension.y, null, null);
-        for(int i = 0; i < 2; i++)
-            binBuff[i] = clCreateBuffer(context, 0L,
-                    Sizeof.cl_float * scaledDimension.x * scaledDimension.y, null, null);
-
-        interToPlanar = new Shader("interToPlanar", context);
-        combinedInit = new Shader("combinedInit", context);
-        downThresh = new Shader("scaleThresh", context);
-        blurMeanBin = new Shader("blurMeanBin", context);
-
-        global_work_size = new long[]{inputDimension.x * inputDimension.y};
-        global_work_size_scaled = new long[]{scaledDimension.x * scaledDimension.y};
-        local_work_size = new long[]{64};
+        global_work_size = inputDimension.x * inputDimension.y;
+        global_work_size_scaled = scaledDimension.x * scaledDimension.y;
+        local_work_size = 64;
 
         setKernelArgs();
     }
 
+    public VisionPipeline(int inputWidth, int inputHeight, int scaleFactor) throws IOException {
+        this(inputWidth, inputHeight, scaleFactor, null, null);
+    }
+
     private void setKernelArgs() {
         // Set the arguments for the rgb2Hsv kernel
-        clSetKernelArg(interToPlanar.kernel, 0,
-                Sizeof.cl_mem, Pointer.to(interleaved));
-        clSetKernelArg(interToPlanar.kernel, 1,
-                Sizeof.cl_mem, Pointer.to(planarHsvImage[0]));
-        clSetKernelArg(interToPlanar.kernel, 2,
-                Sizeof.cl_mem, Pointer.to(planarHsvImage[1]));
-        clSetKernelArg(interToPlanar.kernel, 3,
-                Sizeof.cl_mem, Pointer.to(planarHsvImage[2]));
-        clSetKernelArg(interToPlanar.kernel, 4,
-                Sizeof.cl_int, Pointer.to(new int[]{inputDimension.x * inputDimension.y}));
+        interToPlanar.params = Pointer.to(
+                Pointer.to(interleaved),
+                Pointer.to(planarHsvImage[0]),
+                Pointer.to(planarHsvImage[1]),
+                Pointer.to(planarHsvImage[2]),
+                Pointer.to(new int[]{inputDimension.x * inputDimension.y})
+        );
 
-        // Set the arguments for the rgb2Hsv kernel
-        clSetKernelArg(combinedInit.kernel, 0,
-                Sizeof.cl_mem, Pointer.to(planarHsvImage[0]));
-        clSetKernelArg(combinedInit.kernel, 1,
-                Sizeof.cl_mem, Pointer.to(planarHsvImage[1]));
-        clSetKernelArg(combinedInit.kernel, 2,
-                Sizeof.cl_mem, Pointer.to(planarHsvImage[2]));
-        clSetKernelArg(combinedInit.kernel, 3,
-                Sizeof.cl_int, Pointer.to(new int[]{inputDimension.x * inputDimension.y}));
+        combinedInit.params = Pointer.to(
+                Pointer.to(planarHsvImage[0]),
+                Pointer.to(planarHsvImage[1]),
+                Pointer.to(planarHsvImage[2]),
+                Pointer.to(floatImage),
+                Pointer.to(new int[]{inputDimension.x * inputDimension.y})
+        );
 
-        // Set the arguments for the downscale kernel
-        clSetKernelArg(downThresh.kernel, 0,
-                Sizeof.cl_mem, Pointer.to(planarHsvImage[0]));
-        clSetKernelArg(downThresh.kernel, 1,
-                Sizeof.cl_mem, Pointer.to(binBuff[0]));
-        clSetKernelArg(downThresh.kernel, 2,
-                Sizeof.cl_int, Pointer.to(new int[]{scaleFactor}));
-        clSetKernelArg(downThresh.kernel, 3,
-                Sizeof.cl_int, Pointer.to(new int[]{inputDimension.x}));
-        clSetKernelArg(downThresh.kernel, 4,
-                Sizeof.cl_int, Pointer.to(new int[]{inputDimension.y}));
-        clSetKernelArg(downThresh.kernel, 5,
-                Sizeof.cl_float, Pointer.to(new float[]{100f}));
-        clSetKernelArg(downThresh.kernel, 6,
-                Sizeof.cl_int, Pointer.to(new int[]{0}));
+        downThresh.params = Pointer.to(
+                Pointer.to(floatImage),
+                Pointer.to(binBuff[0]),
+                Pointer.to(new int[]{scaleFactor}),
+                Pointer.to(new int[]{inputDimension.x}),
+                Pointer.to(new int[]{inputDimension.y}),
+                Pointer.to(new float[]{100f}),
+                Pointer.to(new int[]{0})
+        );
 
-        // Set the arguments for the kernel
-        clSetKernelArg(blurMeanBin.kernel, 0,
-                Sizeof.cl_mem, Pointer.to(binBuff[0]));
-        clSetKernelArg(blurMeanBin.kernel, 1,
-                Sizeof.cl_mem, Pointer.to(binBuff[1]));
-        clSetKernelArg(blurMeanBin.kernel, 2,
-                Sizeof.cl_int, Pointer.to(new int[]{scaledDimension.x}));
-        clSetKernelArg(blurMeanBin.kernel, 3,
-                Sizeof.cl_int, Pointer.to(new int[]{scaledDimension.y}));
-        clSetKernelArg(blurMeanBin.kernel, 4,
-                Sizeof.cl_int, Pointer.to(new int[]{10}));
+        blurMeanBin.params = Pointer.to(
+                Pointer.to(binBuff[0]),
+                Pointer.to(binBuff[1]),
+                Pointer.to(new int[]{scaledDimension.x}),
+                Pointer.to(new int[]{scaledDimension.y}),
+                Pointer.to(new int[]{5})
+        );
     }
 
     /**
      * Set readLock and writeLock to true before calling this method
-     * @param input
      */
-    public void process(InterleavedU8 input) {
-        if(!readLock.get() || !writeLock.get())
-            throw new IllegalStateException("Must set readLock and writeLock to true before calling VisionPipeline#process()");
-        clEnqueueWriteBuffer(commandQueue, interleaved, true, 0, Sizeof.cl_uchar * input.data.length,
-                Pointer.to(input.data), 0, null, null);
-
-        synchronized (readLock) {
-            readLock.set(false);
-            readLock.notifyAll();
+    public void process(Pointer inputImage) {
+        if(async && (!readLock.get() || !processLock.get())) {
+            throw new RuntimeException("readLock and processLock should both be true when calling process");
         }
 
-        clEnqueueNDRangeKernel(commandQueue, interToPlanar.kernel, 1, null,
-                global_work_size, local_work_size, 0, null, null);
-        clEnqueueNDRangeKernel(commandQueue, combinedInit.kernel, 1, null,
-                global_work_size, local_work_size, 0, null, null);
-        clEnqueueNDRangeKernel(commandQueue, downThresh.kernel, 1, null,
-                global_work_size_scaled, local_work_size, 0, null, null);
-        clEnqueueNDRangeKernel(commandQueue, blurMeanBin.kernel, 1, null,
-                global_work_size_scaled, local_work_size, 0, null, null);
-        clEnqueueReadBuffer(commandQueue, binBuff[1], true, 0,
-                Sizeof.cl_float * binary.data.length, Pointer.to(binary.data), 0, null, null);
-        clFinish(commandQueue);
+        cuCtxSetCurrent(pctx);
+        cuMemcpyHtoD(interleaved, inputImage, Sizeof.BYTE * inputDimension.x * inputDimension.y * 3);
+        if (async)
+            synchronized (readLock) {
+                readLock.set(false);
+                readLock.notifyAll();
+            }
+        cuLaunchKernel(interToPlanar.function,
+                (global_work_size + 1023) / 1024, 1, 1,           // Grid dimension
+                1024, 1, 1,  // Block dimension
+                0, null,           // Shared memory size and stream
+                interToPlanar.params, null);
+        cuLaunchKernel(combinedInit.function,
+                (global_work_size + 1023) / 1024, 1, 1,
+                1024, 1, 1,
+                0, null,
+                combinedInit.params, null);
+        cuLaunchKernel(downThresh.function,
+                (global_work_size_scaled + 1023) / 1024, 1, 1,
+                1024,1, 1,
+                0, null,
+                downThresh.params, null);
+        cuLaunchKernel(blurMeanBin.function,
+                (global_work_size_scaled + 1023) / 1024, 1, 1,
+                1024, 1, 1,
+                0, null,
+                blurMeanBin.params, null);
+        cuCtxSynchronize();
+        cuMemcpyDtoH(Pointer.to(binary.data), binBuff[1], Sizeof.FLOAT * binary.data.length);
         int size = alg.process(binary, labeled);
         results = getBlobInfo(labeled, size);
+        if (async)
+            synchronized (processLock) {
+                processLock.set(false);
+                processLock.notifyAll();
+            }
     }
 
     public static BlobInfo[] getBlobInfo(GrayS32 labelImage, int numLabels) {
@@ -238,16 +227,20 @@ public class VisionPipeline {
 
     public GrayS32 getBinaryBuff(int index) {
         GrayS32 image = new GrayS32(scaledDimension.x, scaledDimension.y);
-        clEnqueueReadBuffer(commandQueue, binBuff[index], true, 0,
-                Sizeof.cl_int * scaledDimension.x * scaledDimension.y, Pointer.to(image.data), 0, null, null);
+        cuMemcpyDtoH(Pointer.to(image.data), binBuff[index], Sizeof.INT * scaledDimension.x * scaledDimension.y);
         return image;
     }
 
-    public Planar<GrayF32> getPlanar() {
-        Planar<GrayF32> image = new Planar<>(GrayF32.class, inputDimension.x, inputDimension.y, 3);
+    public Planar<GrayU8> getPlanar() {
+        Planar<GrayU8> image = new Planar<>(GrayU8.class, inputDimension.x, inputDimension.y, 3);
         for(int i = 0; i < 3; i++)
-            clEnqueueReadBuffer(commandQueue, planarHsvImage[i], true, 0,
-                    Sizeof.cl_float * inputDimension.x * inputDimension.y, Pointer.to(image.bands[i].data), 0, null, null);
+            cuMemcpyDtoH(Pointer.to(image.bands[i].data), planarHsvImage[i], Sizeof.BYTE * inputDimension.x * inputDimension.y);
+        return image;
+    }
+
+    public GrayF32 getFloatImage() {
+        GrayF32 image = new GrayF32(inputDimension.x, inputDimension.y);
+        cuMemcpyDtoH(Pointer.to(image.data), floatImage, Sizeof.FLOAT * inputDimension.x * inputDimension.y);
         return image;
     }
 
