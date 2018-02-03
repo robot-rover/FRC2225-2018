@@ -93,11 +93,11 @@ public class VisionPipeline {
             binBuff[i] = new CUdeviceptr();
             cuMemAlloc(binBuff[i], Sizeof.FLOAT * scaledDimension.x * scaledDimension.y);
         }
-
-        interToPlanar = new Shader("interToPlanar", true);
-        combinedInit = new Shader("combinedInit", true);
-        downThresh = new Shader("scaleThresh", true);
-        blurMeanBin = new Shader("blurMeanBin", true);
+        final boolean recompile = false;
+        interToPlanar = new Shader("interToPlanar", recompile);
+        combinedInit = new Shader("combinedInit", recompile);
+        downThresh = new Shader("scaleThresh", recompile);
+        blurMeanBin = new Shader("blurMeanBin", recompile);
 
         global_work_size = inputDimension.x * inputDimension.y;
         global_work_size_scaled = scaledDimension.x * scaledDimension.y;
@@ -186,11 +186,6 @@ public class VisionPipeline {
         cuMemcpyDtoH(Pointer.to(binary.data), binBuff[1], Sizeof.FLOAT * binary.data.length);
         int size = alg.process(binary, labeled);
         results = getBlobInfo(labeled, size);
-        if (async)
-            synchronized (processLock) {
-                processLock.set(false);
-                processLock.notifyAll();
-            }
     }
 
     public static BlobInfo[] getBlobInfo(GrayS32 labelImage, int numLabels) {
