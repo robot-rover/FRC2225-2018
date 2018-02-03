@@ -23,9 +23,7 @@
     <orderEntry type="library" name="Gradle: org.jcuda:jcuda-natives:linux-x86_64:0.8.0" level="project" />
     <orderEntry type="library" name="Gradle: org.boofcv:boofcv-core:0.27" level="project" />
     <orderEntry type="library" name="Gradle: org.bytedeco:javacv-platform:1.4" level="project" />
-    <orderEntry type="library" name="Gradle: org.boofcv:WebcamCapture:0.26" level="project" />
     <orderEntry type="library" name="Gradle: ch.qos.logback:logback-core:1.2.3" level="project" />
-    <orderEntry type="library" name="Gradle: com.github.sarxos:webcam-capture:0.3.11" level="project" />
     <orderEntry type="library" name="Gradle: org.slf4j:slf4j-api:1.7.25" level="project" />
     <orderEntry type="library" name="Gradle: org.boofcv:boofcv-io:0.27" level="project" />
     <orderEntry type="library" name="Gradle: org.boofcv:boofcv-learning:0.27" level="project" />
@@ -35,14 +33,6 @@
     <orderEntry type="library" name="Gradle: org.boofcv:boofcv-geo:0.27" level="project" />
     <orderEntry type="library" name="Gradle: org.boofcv:boofcv-feature:0.27" level="project" />
     <orderEntry type="library" name="Gradle: org.boofcv:boofcv-ip:0.27" level="project" />
-    <orderEntry type="library" name="Gradle: org.boofcv:visualize:0.26" level="project" />
-    <orderEntry type="library" name="Gradle: org.boofcv:io:0.26" level="project" />
-    <orderEntry type="library" name="Gradle: org.boofcv:recognition:0.26" level="project" />
-    <orderEntry type="library" name="Gradle: org.boofcv:sfm:0.26" level="project" />
-    <orderEntry type="library" name="Gradle: org.boofcv:calibration:0.26" level="project" />
-    <orderEntry type="library" name="Gradle: org.boofcv:geo:0.26" level="project" />
-    <orderEntry type="library" name="Gradle: org.boofcv:feature:0.26" level="project" />
-    <orderEntry type="library" name="Gradle: org.boofcv:ip:0.26" level="project" />
     <orderEntry type="library" name="Gradle: org.georegression:georegression:0.13" level="project" />
     <orderEntry type="library" name="Gradle: org.bytedeco:javacv:1.4" level="project" />
     <orderEntry type="library" name="Gradle: org.bytedeco.javacpp-presets:flandmark-platform:1.07-1.4" level="project" />
@@ -55,11 +45,12 @@
     <orderEntry type="library" name="Gradle: org.bytedeco.javacpp-presets:librealsense-platform:1.12.1-1.4" level="project" />
     <orderEntry type="library" name="Gradle: org.bytedeco.javacpp-presets:videoinput-platform:0.200-1.4" level="project" />
     <orderEntry type="library" name="Gradle: org.bytedeco.javacpp-presets:artoolkitplus-platform:2.3.1-1.4" level="project" />
-    <orderEntry type="library" name="Gradle: org.yaml:snakeyaml:1.17" level="project" />
     <orderEntry type="library" name="Gradle: org.deepboof:models:0.4" level="project" />
     <orderEntry type="library" name="Gradle: org.deepboof:learning:0.4" level="project" />
     <orderEntry type="library" name="Gradle: org.deepboof:io:0.4" level="project" />
     <orderEntry type="library" name="Gradle: org.deepboof:main:0.4" level="project" />
+    <orderEntry type="library" name="Gradle: org.ddogleg:ddogleg:0.11" level="project" />
+    <orderEntry type="library" name="Gradle: org.yaml:snakeyaml:1.17" level="project" />
     <orderEntry type="library" name="Gradle: org.bytedeco.javacpp-presets:flandmark:1.07-1.4" level="project" />
     <orderEntry type="library" name="Gradle: org.bytedeco.javacpp-presets:flandmark:android-arm:1.07-1.4" level="project" />
     <orderEntry type="library" name="Gradle: org.bytedeco.javacpp-presets:flandmark:android-x86:1.07-1.4" level="project" />
@@ -137,11 +128,6 @@
     <orderEntry type="library" name="Gradle: org.bytedeco.javacpp-presets:artoolkitplus:windows-x86:2.3.1-1.4" level="project" />
     <orderEntry type="library" name="Gradle: org.bytedeco.javacpp-presets:artoolkitplus:windows-x86_64:2.3.1-1.4" level="project" />
     <orderEntry type="library" name="Gradle: org.bytedeco:javacpp:1.4" level="project" />
-    <orderEntry type="library" name="Gradle: com.thoughtworks.xstream:xstream:1.4.7" level="project" />
-    <orderEntry type="library" name="Gradle: com.nativelibs4java:bridj:0.7.0" level="project" />
-    <orderEntry type="library" name="Gradle: org.ddogleg:ddogleg:0.11" level="project" />
-    <orderEntry type="library" name="Gradle: xmlpull:xmlpull:1.1.3.1" level="project" />
-    <orderEntry type="library" name="Gradle: xpp3:xpp3_min:1.1.4c" level="project" />
     <orderEntry type="library" name="Gradle: org.ejml:ejml-simple:0.31" level="project" />
     <orderEntry type="library" name="Gradle: org.ejml:ejml-fdense:0.31" level="project" />
     <orderEntry type="library" name="Gradle: org.ejml:ejml-ddense:0.31" level="project" />
@@ -151,6 +137,5 @@
     <orderEntry type="library" name="Gradle: net.lingala.zip4j:zip4j:1.3.2" level="project" />
     <orderEntry type="library" name="Gradle: org.apache.commons:commons-compress:1.7" level="project" />
     <orderEntry type="library" name="Gradle: org.tukaani:xz:1.4" level="project" />
-    <orderEntry type="library" name="Gradle: org.boofcv:boofcv-swing:0.27" level="project" />
   </component>
 </module>
