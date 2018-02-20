@@ -8,22 +8,28 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 
 import static jcuda.driver.JCudaDriver.*;
 
 public class Shader {
-    public static String shaderDir = "jetson/src/main/cuda/";
-    public static File compiledDir = new File("kernel");
+    public static File shaderDir = new File("kernelSource/");
+    public static File kernelDir = new File("kernel/");
     static {
-        compiledDir.mkdir();
+        shaderDir.mkdir();
+        kernelDir.mkdir();
     }
-    File source;
+
+    public InputStream source;
+    public File sourceFile;
     public String name;
     public Pointer params;
 
     public CUfunction function;
     public Shader(String shaderName, boolean recompile) throws IOException {
-        source = new File(shaderDir,shaderName + ".cu");
+        source = ClassLoader.getSystemResourceAsStream("cuda/" + shaderName + ".cu");
+        sourceFile = new File(shaderDir,shaderName + ".cu");
         name = shaderName;
         CUmodule module = new CUmodule();
 
@@ -40,17 +46,16 @@ public class Shader {
 
     private File preparePtxFile(boolean recompile) throws IOException
     {
-        if (!source.exists())
+        if (!sourceFile.exists() || recompile)
         {
-            throw new IOException("Input file not found: " + source.getAbsolutePath());
+            Files.copy(source, sourceFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
         }
-        File ptxFile = new File(compiledDir, name + ".ptx");
+        File ptxFile = new File(kernelDir, name + ".ptx");
         if(!ptxFile.exists() || recompile) {
-            ptxFile.delete();
             String modelString = "-m" + System.getProperty("sun.arch.data.model");
             String command =
                     "nvcc " + modelString + " -ptx " +
-                            source.getPath() + " -o " + ptxFile.getPath();
+                            sourceFile.getPath() + " -o " + ptxFile.getPath();
 
             System.out.println("Executing\n" + command);
             Process process = Runtime.getRuntime().exec(command);

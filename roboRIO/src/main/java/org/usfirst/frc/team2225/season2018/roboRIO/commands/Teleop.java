@@ -1,23 +1,34 @@
 package org.usfirst.frc.team2225.season2018.roboRIO.commands;
 
 import edu.wpi.first.wpilibj.GenericHID;
+import edu.wpi.first.wpilibj.XboxController;
 import edu.wpi.first.wpilibj.command.Command;
 import org.usfirst.frc.team2225.season2018.roboRIO.RoboRIOMain;
 import org.usfirst.frc.team2225.season2018.roboRIO.Vector2D;
+import org.usfirst.frc.team2225.season2018.roboRIO.subsystems.Lifter;
 
 public class Teleop extends Command {
 
     public Teleop() {
         requires(RoboRIOMain.drivetrain);
+        requires(RoboRIOMain.lifter);
+        //requires(RoboRIOMain.sucker);
     }
 
     @Override
     protected void execute() {
+        XboxController joy = RoboRIOMain.driverInput.getJoy();
         Vector2D translate = new Vector2D();
-        translate.x = signSquare(RoboRIOMain.driverInput.getJoy().getX(GenericHID.Hand.kLeft));
-        translate.y = signSquare(-RoboRIOMain.driverInput.getJoy().getY(GenericHID.Hand.kLeft));
-        double rotate = RoboRIOMain.driverInput.getJoy().getTriggerAxis(GenericHID.Hand.kRight) - RoboRIOMain.driverInput.getJoy().getTriggerAxis(GenericHID.Hand.kLeft);
+        translate.x = signSquare(joy.getX(GenericHID.Hand.kLeft));
+        translate.y = signSquare(-joy.getY(GenericHID.Hand.kLeft));
+        double rotate = -joy.getX(GenericHID.Hand.kRight);
         RoboRIOMain.drivetrain.omniDrive(translate, Math.copySign(rotate * rotate, rotate));
+        double suckerOut = 0;
+        double suckerLim = 0.8;
+        if(joy.getAButton()) suckerOut += suckerLim;
+        if(joy.getBButton()) suckerOut -= suckerLim;
+        RoboRIOMain.sucker.suck(suckerOut);
+        RoboRIOMain.lifter.move(joy.getTriggerAxis(GenericHID.Hand.kLeft)  - joy.getTriggerAxis(GenericHID.Hand.kRight) * 0.02);
 
     }
 

@@ -1,3 +1,5 @@
+import java.util.logging.Level
+
 apply plugin: 'jaci.gradle.EmbeddedTools'
 apply plugin: 'java'
 
@@ -56,58 +58,7 @@ def static getArchString() {
     return "unknown";
 }
 
-dependencies {
-    compile fileTree(include: ['*.jar'], dir: 'libs')
 
-    // Add your other dependencies here:
-
-    // JCuda dependencies are below
-
-    def classifier = getOsString() + "-" + getArchString()
-
-    // Set JCuda version here, or if multiple modules use JCuda,
-    // you should set a global variable like so:
-    //
-    // ext {
-    //  jCudaVersion = "0.8.0"
-    // }
-    //
-    // In your *top level* build gradle, and use
-    // rootProject.ext.jCudaVersion instead of jCudaVersion when you need to access it
-
-    def jCudaVersion = "0.8.0"
-
-    // JCuda Java libraries
-
-    compile(group: 'org.jcuda', name: 'jcuda', version: jCudaVersion) {
-        transitive = false
-    }
-    /*compile(group: 'org.jcuda', name: 'jcublas', version: jCudaVersion) {
-        transitive = false
-    }
-    compile(group: 'org.jcuda', name: 'jcufft', version: jCudaVersion) {
-        transitive = false
-    }
-    compile(group: 'org.jcuda', name: 'jcusparse', version: jCudaVersion) {
-        transitive = false
-    }
-    compile(group: 'org.jcuda', name: 'jcurand', version: jCudaVersion) {
-        transitive = false
-    }*/
-
-    // JCuda native libraries
-
-    compile group: 'org.jcuda', name: 'jcuda-natives',
-            classifier: classifier, version: jCudaVersion
-    /*compile group: 'org.jcuda', name: 'jcublas-natives',
-            classifier: classifier, version: jCudaVersion
-    compile group: 'org.jcuda', name: 'jcufft-natives',
-            classifier: classifier, version: jCudaVersion
-    compile group: 'org.jcuda', name: 'jcusparse-natives',
-            classifier: classifier, version: jCudaVersion
-    compile group: 'org.jcuda', name: 'jcurand-natives',
-            classifier: classifier, version: jCudaVersion*/
-}
 
 deploy {
     targets {
@@ -137,18 +88,17 @@ dependencies {
     compile group: 'org.boofcv', name: 'boofcv-core', version: '0.27'
     compile ('org.jcuda:jcuda:0.8.0') {
         exclude module: 'jcuda-natives'
+        transitive = false
     }
     //compile group: 'edu.wpi.first.cscore', name: 'cscore-java', version: '1.424242.1.0-20180202174959-dirty'
     testCompile group: 'org.boofcv', name: 'boofcv-swing', version: '0.27'
-    compile 'org.bytedeco:javacv-platform:1.4'
-    
-
+    compile 'org.bytedeco:javacv:1.4'
 }
 
 jar {
     from configurations.compile.collect { it.isDirectory() ? it : zipTree(it) }
     // I need to set my manifest up so the coprocessor knows where my main class is
     manifest {
-        attributes 'Main-Class': 'org.usfirst.frc.team2225.season2018.jetson.VisionPipelineCuda'
+        attributes 'Main-Class': 'org.usfirst.frc.team2225.season2018.jetson.CoprocessorExample'
     }
 }

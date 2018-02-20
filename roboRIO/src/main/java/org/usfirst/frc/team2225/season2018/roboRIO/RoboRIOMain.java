@@ -1,10 +1,7 @@
 package org.usfirst.frc.team2225.season2018.roboRIO;
 
 import com.ctre.phoenix.motorcontrol.can.TalonSRX;
-import edu.wpi.first.wpilibj.ADXRS450_Gyro;
-import edu.wpi.first.wpilibj.DriverStation;
-import edu.wpi.first.wpilibj.GenericHID;
-import edu.wpi.first.wpilibj.IterativeRobot;
+import edu.wpi.first.wpilibj.*;
 import edu.wpi.first.wpilibj.command.Command;
 import edu.wpi.first.wpilibj.command.Scheduler;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
@@ -45,11 +42,16 @@ public class RoboRIOMain extends IterativeRobot {
                 new TalonSRX(Bindings.rightLifterTalon)
         );
         sucker = new Sucker(
-                new TalonSRX(Bindings.leftSuckerTalon),
-                new TalonSRX(Bindings.rightSuckerTalon)
+                new VictorSP(Bindings.leftSuckerTalon),
+                new VictorSP(Bindings.rightSuckerTalon)
         );
         driverInput = new DriverInput();
         SmartDashboard.putData("Auto mode", chooser);
+        SmartDashboard.putNumber("P", 0);
+        SmartDashboard.putNumber("I", 0);
+        SmartDashboard.putNumber("I WindUp", 0);
+        SmartDashboard.putNumber("err", 0);
+        SmartDashboard.putNumber("D", 0);
     }
 
     /**
@@ -113,6 +115,24 @@ public class RoboRIOMain extends IterativeRobot {
         drivetrain.backLeft.setSelectedSensorPosition(0, 0, 0);
         drivetrain.backRight.setSelectedSensorPosition(0, 0, 0);
         drivetrain.reset();
+        /*double p = SmartDashboard.getNumber("P", 0);
+        double i = SmartDashboard.getNumber("I", 0);
+        double iWind = SmartDashboard.getNumber("I WindUp", 0);
+        double d = SmartDashboard.getNumber("D", 0);
+        double err = SmartDashboard.getNumber("err", 1);
+        lifter.left.setSelectedSensorPosition(0, 0,0);
+        lifter.right.setSelectedSensorPosition(0,0,0);
+        lifter.left.config_kP(0, p, 0);
+        lifter.left.config_kI(0, i, 0);
+        lifter.left.config_kD(0, d,0);
+        lifter.left.configAllowableClosedloopError(0, (int) err, 0);
+        lifter.left.configNominalOutputReverse(-iWind, 0);
+        lifter.left.configNominalOutputForward(iWind, 0);
+        lifter.right.config_kP(0, p, 0);
+        lifter.right.config_kI(0, i, 0);
+        lifter.right.config_kD(0, d,0);
+        lifter.right.configNominalOutputReverse(-iWind, 0);
+        lifter.right.configNominalOutputForward(iWind, 0);*/
     }
 
     /**

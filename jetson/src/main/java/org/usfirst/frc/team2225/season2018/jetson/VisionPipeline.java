@@ -93,7 +93,7 @@ public class VisionPipeline {
             binBuff[i] = new CUdeviceptr();
             cuMemAlloc(binBuff[i], Sizeof.FLOAT * scaledDimension.x * scaledDimension.y);
         }
-        final boolean recompile = false;
+        final boolean recompile = true;
         interToPlanar = new Shader("interToPlanar", recompile);
         combinedInit = new Shader("combinedInit", recompile);
         downThresh = new Shader("scaleThresh", recompile);

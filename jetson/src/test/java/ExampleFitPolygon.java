@@ -12,6 +12,7 @@ import jcuda.Pointer;
 import org.bytedeco.javacpp.opencv_videoio;
 import org.bytedeco.javacv.OpenCVFrameGrabber;
 import org.bytedeco.javacv.OpenCVFrameRecorder;
+import org.omg.CORBA.Environment;
 import org.usfirst.frc.team2225.season2018.jetson.BlobInfo;
 import org.usfirst.frc.team2225.season2018.jetson.VisionPipeline;
 
@@ -30,7 +31,9 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import static org.bytedeco.javacpp.opencv_videoio.CV_CAP_PROP_AUTO_EXPOSURE;
 import static org.bytedeco.javacpp.opencv_videoio.CV_CAP_PROP_EXPOSURE;
+import static org.bytedeco.javacpp.opencv_videoio.CV_CAP_PROP_XI_AUTO_WB;
 
 public class ExampleFitPolygon {
 
@@ -130,6 +133,7 @@ public class ExampleFitPolygon {
         VisionPipeline pipeline = new VisionPipeline(640, 480, 2, readLock, processLock);
         System.out.println("Opening Webcam");
         OpenCVFrameGrabber grabber = new OpenCVFrameGrabber(0);
+        Runtime.getRuntime().exec("v4l2-ctl -d /dev/video1 -c exposure_auto=1 -c exposure_absolute=5");
         grabber.start();
         ByteBuffer image = (ByteBuffer) grabber.grab().image[0];
         ThreadPoolExecutor pool = new ThreadPoolExecutor(1, 1, 0, TimeUnit.MILLISECONDS, new ArrayBlockingQueue<>(1));
@@ -157,18 +161,6 @@ public class ExampleFitPolygon {
                 }
                 g.dispose();
                 gui.reset();
-                /*for(int i = 0; i < 3; i++)
-                    gui.addImage(planar.bands[i], "Color band " + i);
-                gui.addImage(planar, "Color");
-                gui.addImage(floatImage, "floats");*/
-                /*for(int i = 0; i < planar.bands[0].data.length; i++) {
-                    int x = i % 640;
-                    int y = i / 640;
-                    planar.bands[0].data[i] = (byte) (bin.data[y/2*320 + x / 2] == 0 ? 0 : 255);
-                }*/
-                for(int i = 0; i < planar.bands[0].data.length; i++) {
-                    planar.bands[0].data[i] = (byte) floatImage.data[i];
-                }
                 gui.addImage(planar, "Binary");
                 synchronized (processLock) {
                     processLock.set(false);

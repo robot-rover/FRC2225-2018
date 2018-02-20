@@ -36,12 +36,12 @@ public class Drivetrain extends Subsystem {
         gyro.reset();
         targetRot = 0;
         this.frontLeft = frontLeft;
-        frontLeft.setSensorPhase(true);
-        frontLeft.setInverted(true);
+        frontRight.setInverted(true);
+        frontRight.setSensorPhase(true);
         this.frontRight = frontRight;
         this.backLeft = backLeft;
-        backLeft.setSensorPhase(true);
-        backLeft.setInverted(true);
+        backRight.setInverted(true);
+        backRight.setSensorPhase(true);
         this.backRight = backRight;
         for(TalonSRX motor : new TalonSRX[]{frontLeft, frontRight, backLeft, backRight}) {
             motor.setNeutralMode(NeutralMode.Brake);
@@ -125,10 +125,12 @@ public class Drivetrain extends Subsystem {
      */
     public void setMotorVoltage(double fl, double fr, double bl, double br) {
         SmartDashboard.putNumberArray("Motor Outputs", new double[]{fl, fr, bl, br});
+
         frontLeft.set(ControlMode.PercentOutput, fl);
         frontRight.set(ControlMode.PercentOutput, fr);
         backLeft.set(ControlMode.PercentOutput, bl);
         backRight.set(ControlMode.PercentOutput, br);
+
     }
 
     static final int maxMotorSpeed = 600;
@@ -139,6 +141,37 @@ public class Drivetrain extends Subsystem {
         frontRight.set(ControlMode.Velocity, fr * maxMotorSpeed);
         backLeft.set(ControlMode.Velocity, bl * maxMotorSpeed);
         backRight.set(ControlMode.Velocity, br * maxMotorSpeed);
+    }
+
+    final int countsPerMotorRotation = 80;
+    final int motorRotationsPerWheelRotation = 16;
+    final int wheelDiameterIn = 6;
+    final double wheelDiameterCm = wheelDiameterIn * 2.54;
+    final double wheelCircumferenceCm = wheelDiameterCm * Math.PI;
+
+    public double cmToCounts(double cm) {
+        return cm / wheelCircumferenceCm * motorRotationsPerWheelRotation * countsPerMotorRotation;
+    }
+
+    public double getAverageError() {
+        double averageError = 0;
+        for(TalonSRX motor : new TalonSRX[]{frontLeft, frontRight, backLeft, backRight}) {
+            averageError += motor.getClosedLoopError(0);
+        }
+        averageError /= 4;
+        return averageError;
+    }
+
+    public void setMotorPosition(double fl, double fr, double bl, double br) {
+        fl = cmToCounts(fl);
+        fr = cmToCounts(fr);
+        bl = cmToCounts(bl);
+        br = cmToCounts(br);
+        SmartDashboard.putNumberArray("Motor Outputs", new double[]{fl, fr, bl, br});
+        frontLeft.set(ControlMode.Position, fl);
+        frontRight.set(ControlMode.Position, fr);
+        backLeft.set(ControlMode.Position, bl);
+        backRight.set(ControlMode.Position, br);
     }
 
     static final int encoderCountsPerRevolution = 1280;
@@ -166,7 +199,7 @@ public class Drivetrain extends Subsystem {
         double rotate = 0;
         if(rotateIn != 0) {
             resetTargetRot = 10;
-            rotate = -rotateIn;
+            rotate = rotateIn;
         }
         if(resetTargetRot > 0) {
             targetRot = gyro.getAngle();
@@ -185,7 +218,21 @@ public class Drivetrain extends Subsystem {
         br = padValue(rotate, br, false) + rotate;
         fl = padValue(rotate, fl, false) - rotate;
         bl = padValue(rotate, bl, false) - rotate;
-        setMotorVelocity(fl, fr, bl, br);
+        setMotorVoltage(fl, fr, bl, br);
+    }
+
+    public void omniDistance(Vector2D translate) {
+        double fr, fl, br, bl;
+        fl = translate.dot(frontLeftVec);
+        fr = translate.dot(frontRightVec);
+        bl = translate.dot(backLeftVec);
+        br = translate.dot(backRightVec);
+
+
+    }
+
+    public void omniRotate(double rotateIn) {
+
     }
 
     public void reset() {
