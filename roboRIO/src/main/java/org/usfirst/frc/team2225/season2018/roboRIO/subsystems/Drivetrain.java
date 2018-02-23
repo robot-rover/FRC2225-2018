@@ -55,6 +55,7 @@ public class Drivetrain extends Subsystem {
             motor.config_kI(0, 0, 0);
             motor.config_kD(0, 13, 0);
         }
+        gyro.calibrate();
     }
 
     @Override
@@ -196,7 +197,7 @@ public class Drivetrain extends Subsystem {
         bl = translate.dot(backLeftVec);
         br = translate.dot(backRightVec);
 
-        double rotate = 0;
+        /*double rotate = 0;
         if(rotateIn != 0) {
             resetTargetRot = 10;
             rotate = rotateIn;
@@ -211,7 +212,8 @@ public class Drivetrain extends Subsystem {
             dTerm = Math.copySign(Math.max(0, Math.abs(dTerm) - 0.1), dTerm);
             rotate = pTerm + dTerm;
             rotate = Math.max(-1, Math.min(rotate, 1));
-        }
+        }*/
+        double rotate = rotateIn;
 
 
         fr = padValue(rotate, fr, false) + rotate;
@@ -228,7 +230,10 @@ public class Drivetrain extends Subsystem {
         bl = translate.dot(backLeftVec);
         br = translate.dot(backRightVec);
 
-
+        frontRight.set(ControlMode.Position, frontRight.getSelectedSensorPosition(0) + fr);
+        frontLeft.set(ControlMode.Position, frontLeft.getSelectedSensorPosition(0) + fl);
+        backRight.set(ControlMode.Position, backRight.getSelectedSensorPosition(0) + br);
+        backLeft.set(ControlMode.Position, backLeft.getSelectedSensorPosition(0) + bl);
     }
 
     public void omniRotate(double rotateIn) {

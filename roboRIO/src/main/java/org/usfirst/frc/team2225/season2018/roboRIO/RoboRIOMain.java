@@ -9,6 +9,7 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.usfirst.frc.team2225.season2018.roboRIO.commands.Teleop;
+import org.usfirst.frc.team2225.season2018.roboRIO.commands.auto.CrossBaseline;
 import org.usfirst.frc.team2225.season2018.roboRIO.subsystems.DriverInput;
 import org.usfirst.frc.team2225.season2018.roboRIO.subsystems.Drivetrain;
 import org.usfirst.frc.team2225.season2018.roboRIO.subsystems.Lifter;
@@ -29,7 +30,7 @@ public class RoboRIOMain extends IterativeRobot {
      */
     @Override
     public void robotInit() {
-        chooser.addDefault("Default", null);
+
         drivetrain = new Drivetrain(
                 new TalonSRX(Bindings.frontLeftTalon),
                 new TalonSRX(Bindings.frontRightTalon),
@@ -46,6 +47,8 @@ public class RoboRIOMain extends IterativeRobot {
                 new VictorSP(Bindings.rightSuckerTalon)
         );
         driverInput = new DriverInput();
+        chooser.addDefault("Default", null);
+        chooser.addObject("Cross Baseline", new CrossBaseline());
         SmartDashboard.putData("Auto mode", chooser);
         SmartDashboard.putNumber("P", 0);
         SmartDashboard.putNumber("I", 0);
@@ -91,7 +94,7 @@ public class RoboRIOMain extends IterativeRobot {
         if (autonomousCommand != null)
             autonomousCommand.start();
         else
-            log.error("No Autonomous Selected!");
+            DriverStation.reportError("No Autonomous Selected", false);
     }
 
     /**

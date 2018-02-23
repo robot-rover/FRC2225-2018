@@ -65,17 +65,17 @@ public class Lifter extends Subsystem {
         }
     }
 
-    final double deadzone = 0.01;
+    final double deadzone = 0.0001;
     int pos = 0;
     public void move(double speed) {
         if(Math.abs(speed) < deadzone) {
             left.set(ControlMode.Position, pos);
-            DriverStation.reportWarning("Controlling with Position: " + left.getSelectedSensorPosition(0), false);
+            //DriverStation.reportWarning("Controlling with Position: " + left.getSelectedSensorPosition(0), false);
         }
         else {
             pos = left.getSelectedSensorPosition(0);
             left.set(ControlMode.PercentOutput, speed);
-            DriverStation.reportWarning("Controlling with Percent: " + speed, false);
+            //DriverStation.reportWarning("Controlling with Percent: " + speed, false);
         }
     }
 }

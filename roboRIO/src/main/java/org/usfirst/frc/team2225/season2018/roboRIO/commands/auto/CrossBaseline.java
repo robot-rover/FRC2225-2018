@@ -1,5 +1,6 @@
 package org.usfirst.frc.team2225.season2018.roboRIO.commands.auto;
 
+import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.command.Command;
 import org.usfirst.frc.team2225.season2018.roboRIO.RoboRIOMain;
 import org.usfirst.frc.team2225.season2018.roboRIO.Vector2D;
@@ -11,19 +12,21 @@ public class CrossBaseline extends Command {
         isDone = false;
     }
 
+    long startTime;
+
     @Override
     protected void initialize() {
-        RoboRIOMain.drivetrain.omniDistance(new Vector2D(0, 50));
+        startTime = System.currentTimeMillis();
     }
 
     @Override
     protected void execute() {
-        isDone = RoboRIOMain.drivetrain.getAverageError() < RoboRIOMain.drivetrain.cmToCounts(4);
+        RoboRIOMain.drivetrain.tankDrive(0.4, 0.4);
     }
 
     @Override
     protected boolean isFinished() {
-        return isDone;
+        return System.currentTimeMillis() - startTime > 1500;
     }
 
 }
