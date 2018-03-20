@@ -6,10 +6,8 @@ import org.usfirst.frc.team2225.season2018.roboRIO.RoboRIOMain;
 import org.usfirst.frc.team2225.season2018.roboRIO.Vector2D;
 
 public class CrossBaseline extends Command {
-    boolean isDone;
     public CrossBaseline() {
         requires(RoboRIOMain.drivetrain);
-        isDone = false;
     }
 
     long startTime;
@@ -22,6 +20,11 @@ public class CrossBaseline extends Command {
     @Override
     protected void execute() {
         RoboRIOMain.drivetrain.tankDrive(0.4, 0.4);
+    }
+
+    @Override
+    protected void end() {
+        RoboRIOMain.drivetrain.tankDrive(0, 0);
     }
 
     @Override
