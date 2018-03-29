@@ -1,8 +1,10 @@
 package org.usfirst.frc.team2225.season2018.roboRIO.commands.auto;
 
 import edu.wpi.first.wpilibj.command.Command;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import org.usfirst.frc.team2225.season2018.roboRIO.RoboRIOMain;
 import org.usfirst.frc.team2225.season2018.roboRIO.Vector2D;
+import org.usfirst.frc.team2225.season2018.roboRIO.subsystems.Drivetrain;
 
 public class PlaceCube extends Command {
     int switchStage;
@@ -18,18 +20,21 @@ public class PlaceCube extends Command {
         requires(RoboRIOMain.drivetrain);
         switchStage = 0;
         isFinished = false;
+        this.sideSign = sideSign;
     }
 
     @Override
     protected void initialize() {
         switchStage = 0;
+        nextObjective();
     }
 
-    final static double allowableClosedLoopError = 20;
+    final static double allowableClosedLoopError = Drivetrain.cmToCounts(8);
 
     @Override
     protected void execute() {
-
+        SmartDashboard.putNumber("Auto Stage", switchStage-1);
+        SmartDashboard.putNumber("Drivetrain Error", RoboRIOMain.drivetrain.getAverageError());
         if (timeNextStep != null) {
             if (System.currentTimeMillis() > timeNextStep) {
                 nextObjective();

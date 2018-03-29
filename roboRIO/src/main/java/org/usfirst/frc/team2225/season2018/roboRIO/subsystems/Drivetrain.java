@@ -144,24 +144,24 @@ public class Drivetrain extends Subsystem {
         backRight.set(ControlMode.Velocity, br * maxMotorSpeed);
     }
 
-    final int countsPerMotorRotation = 80;
-    final int motorRotationsPerWheelRotation = 16;
-    final int wheelDiameterIn = 6;
-    final double wheelDiameterCm = wheelDiameterIn * 2.54;
-    final double wheelCircumferenceCm = wheelDiameterCm * Math.PI;
+    final static int countsPerMotorRotation = 80;
+    final static int motorRotationsPerWheelRotation = 16;
+    final static int wheelDiameterIn = 6;
+    final static double wheelDiameterCm = wheelDiameterIn * 2.54;
+    final static double wheelCircumferenceCm = wheelDiameterCm * Math.PI;
 
-    final double robotTurningRadius = 26.5049;
-    final double robotTurningCircumference = 2 * robotTurningRadius * Math.PI;
-    final double robotCmPerDegrees = robotTurningCircumference / 360;
+    final static double robotTurningRadius = 26.5049;
+    final static double robotTurningCircumference = 2 * robotTurningRadius * Math.PI;
+    final static double robotCmPerDegrees = robotTurningCircumference / 360;
 
-    public double cmToCounts(double cm) {
+    public static double cmToCounts(double cm) {
         return cm / wheelCircumferenceCm * motorRotationsPerWheelRotation * countsPerMotorRotation;
     }
 
     public double getAverageError() {
         double averageError = 0;
         for(TalonSRX motor : new TalonSRX[]{frontLeft, frontRight, backLeft, backRight}) {
-            averageError += motor.getClosedLoopError(0);
+            averageError += Math.abs(motor.getClosedLoopError(0));
         }
         averageError /= 4;
         return averageError;
@@ -229,10 +229,10 @@ public class Drivetrain extends Subsystem {
 
     public void omniDistance(Vector2D translate) {
         double fr, fl, br, bl;
-        fl = translate.dot(frontLeftVec);
-        fr = translate.dot(frontRightVec);
-        bl = translate.dot(backLeftVec);
-        br = translate.dot(backRightVec);
+        fl = cmToCounts(translate.dot(frontLeftVec));
+        fr = cmToCounts(translate.dot(frontRightVec));
+        bl = cmToCounts(translate.dot(backLeftVec));
+        br = cmToCounts(translate.dot(backRightVec));
 
         frontRight.set(ControlMode.Position, frontRight.getSelectedSensorPosition(0) + fr);
         frontLeft.set(ControlMode.Position, frontLeft.getSelectedSensorPosition(0) + fl);

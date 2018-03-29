@@ -25,10 +25,11 @@ public class Teleop extends Command {
         RoboRIOMain.drivetrain.omniDrive(translate, Math.copySign(rotate * rotate, rotate));
         double suckerOut = 0;
         double suckerLim = 0.8;
+        //should be suck in (input is positive)
         if(joy.getAButton()) suckerOut += suckerLim;
         if(joy.getBButton()) suckerOut -= suckerLim;
         RoboRIOMain.sucker.suck(suckerOut);
-        RoboRIOMain.lifter.move(joy.getTriggerAxis(GenericHID.Hand.kLeft)  - joy.getTriggerAxis(GenericHID.Hand.kRight) * 0.7);
+        RoboRIOMain.lifter.move(-joy.getTriggerAxis(GenericHID.Hand.kLeft) + joy.getTriggerAxis(GenericHID.Hand.kRight) * 0.7);
 
     }
 

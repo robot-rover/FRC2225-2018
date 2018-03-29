@@ -29,7 +29,7 @@ public class CrossBaseline extends Command {
 
     @Override
     protected boolean isFinished() {
-        return System.currentTimeMillis() - startTime > 1500;
+        return System.currentTimeMillis() - startTime > 6000;
     }
 
 }
