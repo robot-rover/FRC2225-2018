@@ -150,6 +150,10 @@ public class Drivetrain extends Subsystem {
     final double wheelDiameterCm = wheelDiameterIn * 2.54;
     final double wheelCircumferenceCm = wheelDiameterCm * Math.PI;
 
+    final double robotTurningRadius = 26.5049;
+    final double robotTurningCircumference = 2 * robotTurningRadius * Math.PI;
+    final double robotCmPerDegrees = robotTurningCircumference / 360;
+
     public double cmToCounts(double cm) {
         return cm / wheelCircumferenceCm * motorRotationsPerWheelRotation * countsPerMotorRotation;
     }
@@ -236,8 +240,17 @@ public class Drivetrain extends Subsystem {
         backLeft.set(ControlMode.Position, backLeft.getSelectedSensorPosition(0) + bl);
     }
 
+    /**
+     * Turn the robot
+     * @param rotateIn Degrees Clockwise
+     */
     public void omniRotate(double rotateIn) {
-
+        double cm = rotateIn * robotCmPerDegrees; //todo : fixme
+        double counts = cmToCounts(cm);
+        frontRight.set(ControlMode.Position, frontRight.getSelectedSensorPosition(0) - counts);
+        frontLeft.set(ControlMode.Position, frontLeft.getSelectedSensorPosition(0) + counts);
+        backRight.set(ControlMode.Position, backRight.getSelectedSensorPosition(0) - counts);
+        backLeft.set(ControlMode.Position, backLeft.getSelectedSensorPosition(0) + counts);
     }
 
     public void reset() {

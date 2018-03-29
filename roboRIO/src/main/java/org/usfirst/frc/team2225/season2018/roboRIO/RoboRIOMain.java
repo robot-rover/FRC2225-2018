@@ -10,6 +10,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.usfirst.frc.team2225.season2018.roboRIO.commands.Teleop;
 import org.usfirst.frc.team2225.season2018.roboRIO.commands.auto.CrossBaseline;
+import org.usfirst.frc.team2225.season2018.roboRIO.commands.auto.PlaceCube;
 import org.usfirst.frc.team2225.season2018.roboRIO.subsystems.DriverInput;
 import org.usfirst.frc.team2225.season2018.roboRIO.subsystems.Drivetrain;
 import org.usfirst.frc.team2225.season2018.roboRIO.subsystems.Lifter;
@@ -49,6 +50,8 @@ public class RoboRIOMain extends IterativeRobot {
         driverInput = new DriverInput();
         chooser.addDefault("Default", null);
         chooser.addObject("Cross Baseline", new CrossBaseline());
+        chooser.addObject("PlaceCube Left", new PlaceCube(-1));
+        chooser.addObject("PlaceCube Right", new PlaceCube(1));
         SmartDashboard.putData("Auto mode", chooser);
         SmartDashboard.putNumber("P", 0);
         SmartDashboard.putNumber("I", 0);
