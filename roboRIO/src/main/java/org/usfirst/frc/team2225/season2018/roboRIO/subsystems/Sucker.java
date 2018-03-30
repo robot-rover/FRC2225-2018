@@ -17,6 +17,10 @@ public class Sucker extends Subsystem {
         right.set(speed); left.set(speed);
     }
 
+    public void turn(double speed) {
+        right.set(speed); left.set(-speed);
+    }
+
     @Override
     protected void initDefaultCommand() {
 

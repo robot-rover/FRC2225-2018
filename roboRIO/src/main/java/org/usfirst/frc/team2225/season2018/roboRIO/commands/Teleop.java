@@ -29,6 +29,13 @@ public class Teleop extends Command {
         if(joy.getAButton()) suckerOut += suckerLim;
         if(joy.getBButton()) suckerOut -= suckerLim;
         RoboRIOMain.sucker.suck(suckerOut);
+        double turnOut = 0.0;
+        if(joy.getYButton())
+            turnOut += suckerLim;
+        if(joy.getXButton())
+            turnOut -= suckerLim;
+        if(turnOut != 0.0)
+            RoboRIOMain.sucker.turn(turnOut);
         RoboRIOMain.lifter.move(-joy.getTriggerAxis(GenericHID.Hand.kLeft) + joy.getTriggerAxis(GenericHID.Hand.kRight) * 0.7);
 
     }

@@ -51,9 +51,9 @@ public class Drivetrain extends Subsystem {
             motor.configPeakOutputForward(1, 0);
             motor.configPeakOutputReverse(-1, 0);
             motor.configClosedloopRamp(0.4, 0);
-            motor.config_kP(0, 4, 0);
+            motor.config_kP(0, 0.5, 0);
             motor.config_kI(0, 0, 0);
-            motor.config_kD(0, 13, 0);
+            motor.config_kD(0, 2, 0);
         }
         gyro.calibrate();
     }
@@ -160,8 +160,13 @@ public class Drivetrain extends Subsystem {
 
     public double getAverageError() {
         double averageError = 0;
+        int motorIndex = 0;
         for(TalonSRX motor : new TalonSRX[]{frontLeft, frontRight, backLeft, backRight}) {
             averageError += Math.abs(motor.getClosedLoopError(0));
+            SmartDashboard.putNumber("Motor " + motorIndex + " error", motor.getClosedLoopError(0));
+            SmartDashboard.putNumber("Motor " + motorIndex + " target", motor.getClosedLoopTarget(0));
+            SmartDashboard.putNumber("Motor " + motorIndex + " position", motor.getSelectedSensorPosition(0));
+            motorIndex++;
         }
         averageError /= 4;
         return averageError;

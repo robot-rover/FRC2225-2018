@@ -1,12 +1,12 @@
 package org.usfirst.frc.team2225.season2018.roboRIO.commands.auto;
 
-import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.command.Command;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import org.usfirst.frc.team2225.season2018.roboRIO.RoboRIOMain;
 import org.usfirst.frc.team2225.season2018.roboRIO.Vector2D;
 
-public class CrossBaseline extends Command {
-    public CrossBaseline() {
+public class CrossBaselineDistance extends Command {
+    public CrossBaselineDistance() {
         requires(RoboRIOMain.drivetrain);
     }
 
@@ -14,12 +14,8 @@ public class CrossBaseline extends Command {
 
     @Override
     protected void initialize() {
-        startTime = System.currentTimeMillis();
-    }
-
-    @Override
-    protected void execute() {
-        RoboRIOMain.drivetrain.tankDrive(0.4, 0.45);
+        RoboRIOMain.drivetrain.omniDistance(new Vector2D(0, 330));
+        SmartDashboard.putNumber("Drivetrain Error", RoboRIOMain.drivetrain.getAverageError());
     }
 
     @Override
@@ -29,7 +25,7 @@ public class CrossBaseline extends Command {
 
     @Override
     protected boolean isFinished() {
-        return System.currentTimeMillis() - startTime > 6000;
+        return RoboRIOMain.drivetrain.getAverageError() < PlaceCube.allowableClosedLoopError;
     }
 
 }

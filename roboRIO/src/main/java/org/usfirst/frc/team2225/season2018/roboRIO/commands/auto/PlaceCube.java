@@ -1,5 +1,6 @@
 package org.usfirst.frc.team2225.season2018.roboRIO.commands.auto;
 
+import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.command.Command;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import org.usfirst.frc.team2225.season2018.roboRIO.RoboRIOMain;
@@ -39,9 +40,10 @@ public class PlaceCube extends Command {
             if (System.currentTimeMillis() > timeNextStep) {
                 nextObjective();
                 timeNextStep = null;
-
+                DriverStation.reportWarning("adv time", false);
             }
         } else if (RoboRIOMain.drivetrain.getAverageError() < allowableClosedLoopError)
+            DriverStation.reportWarning("adv error: " + RoboRIOMain.drivetrain.getAverageError(), false);
             nextObjective();
     }
 
@@ -60,11 +62,25 @@ public class PlaceCube extends Command {
             case 3:
                 RoboRIOMain.lifter.move(0);
                 RoboRIOMain.drivetrain.omniDistance(new Vector2D(sideSign * 426.72, 0));
+                String sides = DriverStation.getInstance().getGameSpecificMessage();
+                /*DriverStation.reportWarning("Game Message: " + (sides == null ? "null" : sides), false);
+                if(sides != null && sides.length() > 0)
+                    if(sides.substring(0, 1).equals((sideSign > 0 ? "L" : "R"))) {
+                        switchStage = 100;
+                        return;
+                    }*/
                 break;
             case 4:
+                timeNextStep = System.currentTimeMillis() + 500;
+                RoboRIOMain.drivetrain.tankDrive(0.4, 0.45);
+                break;
+            case 5:
+                RoboRIOMain.drivetrain.tankDrive(0,0);
+                timeNextStep = System.currentTimeMillis() + 500;
                 RoboRIOMain.sucker.suck(-1);
                 break;
             default:
+                RoboRIOMain.sucker.suck(0);
                 isFinished = true;
                 break;
         }
