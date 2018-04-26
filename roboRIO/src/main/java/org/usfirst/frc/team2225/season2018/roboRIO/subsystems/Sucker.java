@@ -14,7 +14,7 @@ public class Sucker extends Subsystem {
     }
 
     public void suck(double speed) {
-        right.set(speed); left.set(speed);
+        right.set(speed); left.set(-speed);
     }
 
     public void turn(double speed) {

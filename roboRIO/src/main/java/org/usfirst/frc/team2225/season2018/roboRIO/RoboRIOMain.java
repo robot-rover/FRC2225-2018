@@ -32,6 +32,7 @@ public class RoboRIOMain extends IterativeRobot {
      */
     @Override
     public void robotInit() {
+        CameraServer.getInstance().startAutomaticCapture();
 
         drivetrain = new Drivetrain(
                 new TalonSRX(Bindings.frontLeftTalon),

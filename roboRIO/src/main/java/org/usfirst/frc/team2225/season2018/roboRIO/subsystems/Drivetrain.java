@@ -6,6 +6,7 @@ import com.ctre.phoenix.motorcontrol.NeutralMode;
 import com.ctre.phoenix.motorcontrol.can.TalonSRX;
 import edu.wpi.first.wpilibj.ADXRS450_Gyro;
 import edu.wpi.first.wpilibj.command.Subsystem;
+import edu.wpi.first.wpilibj.smartdashboard.SendableBuilder;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import org.usfirst.frc.team2225.season2018.roboRIO.Vector2D;
 import org.usfirst.frc.team2225.season2018.roboRIO.commands.Teleop;
@@ -22,6 +23,39 @@ public class Drivetrain extends Subsystem {
     public ADXRS450_Gyro gyro;
     double targetRot;
     int resetTargetRot;
+
+    @Override
+    public void initSendable(SendableBuilder builder) {
+        builder.setSmartDashboardType("Subsystem");
+        builder.addDoubleArrayProperty("Motor Position", () -> new double[]{
+                frontLeft.getSelectedSensorPosition(0),
+                frontRight.getSelectedSensorPosition(0),
+                backLeft.getSelectedSensorPosition(0),
+                backRight.getSelectedSensorPosition(0)
+        }, (double[] data) -> {});
+        builder.addDoubleArrayProperty("Motor Target", () -> {if (frontRight.getControlMode() == ControlMode.Position || frontRight.getControlMode() == ControlMode.Velocity) {
+            return new double[]{
+                    frontLeft.getClosedLoopTarget(0),
+                    frontRight.getClosedLoopTarget(0),
+                    backLeft.getClosedLoopTarget(0),
+                    backRight.getClosedLoopTarget(0)};
+        } else {return new double[0];}
+        }, (double[] data) -> {});
+        builder.addDoubleArrayProperty("Motor Error", () -> new double[]{
+                frontLeft.getClosedLoopError(0),
+                frontRight.getClosedLoopError(0),
+                backLeft.getClosedLoopError(0),
+                backRight.getClosedLoopError(0)
+        }, (double[] data) -> {});
+        builder.addDoubleArrayProperty("Motor Output", () -> new double[]{
+                frontLeft.getMotorOutputPercent(),
+                frontRight.getMotorOutputPercent(),
+                backLeft.getMotorOutputPercent(),
+                backRight.getMotorOutputPercent()
+        }, (double[] data) -> {});
+        builder.addDoubleArrayProperty("Gyro Output", () -> new double[]{gyro.getAngle(), gyro.getRate()}, (double[] data) -> {});
+
+    }
 
     /**
      * Contructs an Omnidrive object
@@ -60,7 +94,7 @@ public class Drivetrain extends Subsystem {
 
     @Override
     public void periodic() {
-        SmartDashboard.putNumberArray("Gyro Reading", new double[]{gyro.getAngle(), gyro.getRate()});
+        /*SmartDashboard.putNumberArray("Gyro Reading", new double[]{gyro.getAngle(), gyro.getRate()});
         double fr, fl, br, bl;
         fl = frontLeft.getSelectedSensorPosition(0);
         fr = frontRight.getSelectedSensorPosition(0);
@@ -76,12 +110,18 @@ public class Drivetrain extends Subsystem {
         fr = frontRight.getSelectedSensorVelocity(0);
         bl = backLeft.getSelectedSensorVelocity(0);
         br = backRight.getSelectedSensorVelocity(0);
-        SmartDashboard.putNumberArray("Motor Velocity", new double[]{fr, fl, br, bl});
+        SmartDashboard.putNumberArray("Motor Velocity", new double[]{fr, fl, br, bl});*/
     }
 
-    public static double padValue(double pad, double value, boolean includePad) {
+    public static double padMinValue(double pad, double value, boolean includePad) {
         double sign = Math.signum(value);
         return sign * ((1 - pad) * Math.abs(value) + (includePad ? pad : 0));
+    }
+
+    public static double deadzone(double deadzone, double value) {
+        if(Math.abs(value) < deadzone)
+            return 0;
+        return Math.copySign((value - deadzone)/(1-deadzone), value);
     }
 
     @Override
@@ -160,13 +200,8 @@ public class Drivetrain extends Subsystem {
 
     public double getAverageError() {
         double averageError = 0;
-        int motorIndex = 0;
         for(TalonSRX motor : new TalonSRX[]{frontLeft, frontRight, backLeft, backRight}) {
             averageError += Math.abs(motor.getClosedLoopError(0));
-            SmartDashboard.putNumber("Motor " + motorIndex + " error", motor.getClosedLoopError(0));
-            SmartDashboard.putNumber("Motor " + motorIndex + " target", motor.getClosedLoopTarget(0));
-            SmartDashboard.putNumber("Motor " + motorIndex + " position", motor.getSelectedSensorPosition(0));
-            motorIndex++;
         }
         averageError /= 4;
         return averageError;
@@ -225,10 +260,10 @@ public class Drivetrain extends Subsystem {
         double rotate = rotateIn;
 
 
-        fr = padValue(rotate, fr, false) + rotate;
-        br = padValue(rotate, br, false) + rotate;
-        fl = padValue(rotate, fl, false) - rotate;
-        bl = padValue(rotate, bl, false) - rotate;
+        fr = padMinValue(rotate, fr, false) + rotate;
+        br = padMinValue(rotate, br, false) + rotate;
+        fl = padMinValue(rotate, fl, false) - rotate;
+        bl = padMinValue(rotate, bl, false) - rotate;
         setMotorVoltage(fl, fr, bl, br);
     }
 
