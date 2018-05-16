@@ -5,17 +5,21 @@ import com.ctre.phoenix.motorcontrol.FeedbackDevice;
 import com.ctre.phoenix.motorcontrol.NeutralMode;
 import com.ctre.phoenix.motorcontrol.can.TalonSRX;
 import edu.wpi.first.wpilibj.ADXRS450_Gyro;
+import edu.wpi.first.wpilibj.DriverStation;
+import edu.wpi.first.wpilibj.Talon;
 import edu.wpi.first.wpilibj.command.Subsystem;
 import edu.wpi.first.wpilibj.smartdashboard.SendableBuilder;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import org.usfirst.frc.team2225.season2018.roboRIO.Vector2D;
 import org.usfirst.frc.team2225.season2018.roboRIO.commands.Teleop;
 
+import java.util.Arrays;
+
 public class Drivetrain extends Subsystem {
-    static final Vector2D frontLeftVec = new Vector2D(Math.sqrt(2) / 2, Math.sqrt(2) / 2);
-    static final Vector2D frontRightVec = new Vector2D(-Math.sqrt(2) / 2, Math.sqrt(2) / 2);
-    static final Vector2D backLeftVec = new Vector2D(-Math.sqrt(2) / 2, Math.sqrt(2) / 2);
-    static final Vector2D backRightVec = new Vector2D(Math.sqrt(2) / 2, Math.sqrt(2) / 2);
+    public static final Vector2D frontLeftVec = new Vector2D(Math.sqrt(2) / 2, Math.sqrt(2) / 2);
+    public static final Vector2D frontRightVec = new Vector2D(-Math.sqrt(2) / 2, Math.sqrt(2) / 2);
+    public static final Vector2D backLeftVec = new Vector2D(-Math.sqrt(2) / 2, Math.sqrt(2) / 2);
+    public static final Vector2D backRightVec = new Vector2D(Math.sqrt(2) / 2, Math.sqrt(2) / 2);
     public TalonSRX frontLeft;
     public TalonSRX frontRight;
     public TalonSRX backLeft;
@@ -73,6 +77,8 @@ public class Drivetrain extends Subsystem {
         frontRight.setInverted(true);
         frontRight.setSensorPhase(true);
         this.frontRight = frontRight;
+        frontRight.setInverted(true);
+        frontRight.setSensorPhase(false);
         this.backLeft = backLeft;
         backRight.setInverted(true);
         backRight.setSensorPhase(true);
@@ -88,29 +94,43 @@ public class Drivetrain extends Subsystem {
             motor.config_kP(0, 0.5, 0);
             motor.config_kI(0, 0, 0);
             motor.config_kD(0, 2, 0);
+            motor.config_IntegralZone(0, 0, 0);
         }
         gyro.calibrate();
     }
 
     @Override
     public void periodic() {
-        /*SmartDashboard.putNumberArray("Gyro Reading", new double[]{gyro.getAngle(), gyro.getRate()});
+        SmartDashboard.putString("Gyro Reading", gyro.getAngle() + " | " + gyro.getRate());
         double fr, fl, br, bl;
         fl = frontLeft.getSelectedSensorPosition(0);
         fr = frontRight.getSelectedSensorPosition(0);
         bl = backLeft.getSelectedSensorPosition(0);
         br = backRight.getSelectedSensorPosition(0);
-        SmartDashboard.putNumberArray("Motor Position", new double[]{fr, fl, br, bl});
+        SmartDashboard.putString("Motor Position", fr + " | " + fl + " | " + br + " | " + bl);
         fl = frontLeft.getMotorOutputPercent();
         fr = frontRight.getMotorOutputPercent();
         bl = backLeft.getMotorOutputPercent();
         br = backRight.getMotorOutputPercent();
-        SmartDashboard.putNumberArray("Motor Output", new double[]{fr, fl, br, bl});
+        SmartDashboard.putString("Motor Output", fr + " | " + fl + " | " + br + " | " + bl);
         fl = frontLeft.getSelectedSensorVelocity(0);
         fr = frontRight.getSelectedSensorVelocity(0);
         bl = backLeft.getSelectedSensorVelocity(0);
         br = backRight.getSelectedSensorVelocity(0);
-        SmartDashboard.putNumberArray("Motor Velocity", new double[]{fr, fl, br, bl});*/
+        SmartDashboard.putString("Motor Velocity", fr + " | " + fl + " | " + br + " | " + bl);
+
+
+        double p = SmartDashboard.getNumber("P", 0);
+        double i = SmartDashboard.getNumber("I", 0);
+        double d = SmartDashboard.getNumber("D", 0);
+        double iz = SmartDashboard.getNumber("IZ", 0);
+
+        for (TalonSRX talon : new TalonSRX[]{frontLeft, frontRight, backLeft, backRight}) {
+            talon.config_kP(0, p, 0);
+            talon.config_kI(0, i, 0);
+            talon.config_kD(0, d,0);
+            talon.config_IntegralZone(0, (int)iz, 0);
+        }
     }
 
     public static double padMinValue(double pad, double value, boolean includePad) {
@@ -121,7 +141,7 @@ public class Drivetrain extends Subsystem {
     public static double deadzone(double deadzone, double value) {
         if(Math.abs(value) < deadzone)
             return 0;
-        return Math.copySign((value - deadzone)/(1-deadzone), value);
+        return Math.copySign((Math.abs(value) - deadzone)/(1-deadzone), value);
     }
 
     @Override
@@ -232,7 +252,7 @@ public class Drivetrain extends Subsystem {
      * @param rotateIn  The amount of rotation desired (Positive is counter-clockwise)
      */
     public void omniDrive(Vector2D translate, double rotateIn) {
-        final double p = 1.0/150.0;
+        final double p = 1.0/100.0;
         final double d = 1.0/400.0;
         translate.mapSquareToDiamond().divide(Math.sqrt(2) / 2);
         double fr, fl, br, bl;
@@ -241,8 +261,9 @@ public class Drivetrain extends Subsystem {
         bl = translate.dot(backLeftVec);
         br = translate.dot(backRightVec);
 
-        /*double rotate = 0;
-        if(rotateIn != 0) {
+        double rotate = 0;
+        boolean controllerInputIsPresent = Math.abs(rotateIn) > 0.1;
+        if(controllerInputIsPresent) {
             resetTargetRot = 10;
             rotate = rotateIn;
         }
@@ -250,14 +271,38 @@ public class Drivetrain extends Subsystem {
             targetRot = gyro.getAngle();
             resetTargetRot--;
         }
-        if(rotateIn == 0) {
+        if(!controllerInputIsPresent) {
             double pTerm = resetTargetRot > 0 ? 0 : (gyro.getAngle() - targetRot) * p;
             double dTerm = gyro.getRate() * d;
             dTerm = Math.copySign(Math.max(0, Math.abs(dTerm) - 0.1), dTerm);
             rotate = pTerm + dTerm;
-            rotate = Math.max(-1, Math.min(rotate, 1));
-        }*/
-        double rotate = rotateIn;
+            rotate = Math.max(-0.5, Math.min(rotate, 0.5));
+        }
+
+
+        fr = padMinValue(rotate, fr, false) + rotate;
+        br = padMinValue(rotate, br, false) + rotate;
+        fl = padMinValue(rotate, fl, false) - rotate;
+        bl = padMinValue(rotate, bl, false) - rotate;
+        setMotorVoltage(fl, fr, bl, br);
+    }
+
+    public void omniDriveGyroTarget(Vector2D translate, double gyroTarget) {
+        final double p = 1.0/100.0;
+        final double d = 1.0/400.0;
+        translate.mapSquareToDiamond().divide(Math.sqrt(2) / 2);
+        double fr, fl, br, bl;
+        fl = translate.dot(frontLeftVec);
+        fr = translate.dot(frontRightVec);
+        bl = translate.dot(backLeftVec);
+        br = translate.dot(backRightVec);
+
+        double rotate;
+        double pTerm = (gyro.getAngle() - gyroTarget) * p;
+        double dTerm = gyro.getRate() * d;
+        dTerm = Math.copySign(Math.max(0, Math.abs(dTerm) - 0.1), dTerm);
+        rotate = pTerm + dTerm;
+        rotate = Math.max(-0.5, Math.min(rotate, 0.5));
 
 
         fr = padMinValue(rotate, fr, false) + rotate;
@@ -273,7 +318,7 @@ public class Drivetrain extends Subsystem {
         fr = cmToCounts(translate.dot(frontRightVec));
         bl = cmToCounts(translate.dot(backLeftVec));
         br = cmToCounts(translate.dot(backRightVec));
-
+        DriverStation.reportWarning("Setting Position: " + Arrays.toString(new double[]{fl, fr, bl, br}), false);
         frontRight.set(ControlMode.Position, frontRight.getSelectedSensorPosition(0) + fr);
         frontLeft.set(ControlMode.Position, frontLeft.getSelectedSensorPosition(0) + fl);
         backRight.set(ControlMode.Position, backRight.getSelectedSensorPosition(0) + br);

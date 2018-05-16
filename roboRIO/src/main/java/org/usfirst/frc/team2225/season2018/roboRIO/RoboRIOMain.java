@@ -12,6 +12,7 @@ import org.usfirst.frc.team2225.season2018.roboRIO.commands.Teleop;
 import org.usfirst.frc.team2225.season2018.roboRIO.commands.auto.CrossBaseline;
 import org.usfirst.frc.team2225.season2018.roboRIO.commands.auto.CrossBaselineDistance;
 import org.usfirst.frc.team2225.season2018.roboRIO.commands.auto.PlaceCube;
+import org.usfirst.frc.team2225.season2018.roboRIO.commands.auto.PlaceCubeCenter;
 import org.usfirst.frc.team2225.season2018.roboRIO.subsystems.DriverInput;
 import org.usfirst.frc.team2225.season2018.roboRIO.subsystems.Drivetrain;
 import org.usfirst.frc.team2225.season2018.roboRIO.subsystems.Lifter;
@@ -55,11 +56,10 @@ public class RoboRIOMain extends IterativeRobot {
         chooser.addObject("PlaceCube Left", new PlaceCube(-1));
         chooser.addObject("PlaceCube Right", new PlaceCube(1));
         chooser.addObject("Cross Straight", new CrossBaselineDistance());
+        chooser.addObject("PlaceCube Center", new PlaceCubeCenter());
         SmartDashboard.putData("Auto mode", chooser);
-        SmartDashboard.putNumber("P", 0);
+        SmartDashboard.putNumber("P", 1023.0/Drivetrain.cmToCounts(1000));
         SmartDashboard.putNumber("I", 0);
-        SmartDashboard.putNumber("I WindUp", 0);
-        SmartDashboard.putNumber("err", 0);
         SmartDashboard.putNumber("D", 0);
     }
 
@@ -76,9 +76,6 @@ public class RoboRIOMain extends IterativeRobot {
     @Override
     public void disabledPeriodic() {
         Scheduler.getInstance().run();
-        /*SmartDashboard.putNumber("Motor Position", drivetrain.frontLeft.getSelectedSensorPosition(0));
-        SmartDashboard.putNumber("Motor Velocity", drivetrain.frontLeft.getSelectedSensorVelocity(0));*/
-        //DriverStation.reportWarning("Joy Out: " + driverInput.getJoy().getY(GenericHID.Hand.kLeft) + ", " + driverInput.getJoy().getX(GenericHID.Hand.kLeft), false);
     }
 
     /**
@@ -124,24 +121,7 @@ public class RoboRIOMain extends IterativeRobot {
         drivetrain.backLeft.setSelectedSensorPosition(0, 0, 0);
         drivetrain.backRight.setSelectedSensorPosition(0, 0, 0);
         drivetrain.reset();
-        /*double p = SmartDashboard.getNumber("P", 0);
-        double i = SmartDashboard.getNumber("I", 0);
-        double iWind = SmartDashboard.getNumber("I WindUp", 0);
-        double d = SmartDashboard.getNumber("D", 0);
-        double err = SmartDashboard.getNumber("err", 1);
-        lifter.left.setSelectedSensorPosition(0, 0,0);
-        lifter.right.setSelectedSensorPosition(0,0,0);
-        lifter.left.config_kP(0, p, 0);
-        lifter.left.config_kI(0, i, 0);
-        lifter.left.config_kD(0, d,0);
-        lifter.left.configAllowableClosedloopError(0, (int) err, 0);
-        lifter.left.configNominalOutputReverse(-iWind, 0);
-        lifter.left.configNominalOutputForward(iWind, 0);
-        lifter.right.config_kP(0, p, 0);
-        lifter.right.config_kI(0, i, 0);
-        lifter.right.config_kD(0, d,0);
-        lifter.right.configNominalOutputReverse(-iWind, 0);
-        lifter.right.configNominalOutputForward(iWind, 0);*/
+
     }
 
     /**

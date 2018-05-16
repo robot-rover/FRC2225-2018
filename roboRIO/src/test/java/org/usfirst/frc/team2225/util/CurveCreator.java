@@ -8,9 +8,7 @@ import javax.swing.event.ChangeListener;
 import java.awt.*;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
-import java.util.List;
 import java.util.function.BiFunction;
-import java.util.function.Function;
 
 public class CurveCreator {
     public static void main (String[] args) {
@@ -18,10 +16,16 @@ public class CurveCreator {
     }
 
     public static double teleopJoystickProcessor(double valIn, double param[]) {
-        double val = Drivetrain.deadzone(param[0], valIn);
+        /*double val = Drivetrain.deadzone(param[0], valIn);
         if(val > 0)
             val = Drivetrain.padMinValue(param[1], val, true);
-        val = Math.copySign(Math.pow(val, param[2] * 3), val);
+        val = Math.copySign(Math.pow(val, param[2] * 3), val);*/
+        double val = valIn;
+        val = Drivetrain.deadzone(param[0], val);
+        val = Math.copySign(Math.pow(Math.abs(val), param[2] * 3), val);
+
+        if(Math.abs(val) > 0)
+            val = Drivetrain.padMinValue(param[1], val, true);
         return val;
     }
 }
@@ -50,6 +54,7 @@ class CurveViewer extends JFrame {
 
         JLabel inputLabel = new JLabel();
         inputSlider.addChangeListener(e -> {
+            input = inputSlider.getValue() / 300.0;
             inputLabel.setText("Input Value: " + input + " | Output Value: " + String.format("%.2f",curveFunction.apply(input, params)));
             jp.repaint();
         });
@@ -79,20 +84,20 @@ class CurveViewer extends JFrame {
 
         @Override
         public void stateChanged(ChangeEvent e) {
-            label.setText("Parameter Value: " + slider.getValue() / 100);
-            params[index] = slider.getValue() / 100;
+            label.setText("Parameter Value: " + slider.getValue() / 100.0);
+            params[index] = slider.getValue() / 100.0;
             jp.repaint();
         }
     }
 
     class GPanel extends JPanel {
         public GPanel() {
-            super.setPreferredSize(new Dimension(520, 520));
+            super.setPreferredSize(new Dimension(520, 530));
             addMouseListener(new MouseListener() {
                 @Override
                 public void mouseClicked(MouseEvent e) {
                     System.out.println(e.getX());
-                    inputSlider.setValue((e.getX()-10)/5);
+                    inputSlider.setValue((e.getX()-10)/5*3);
                 }
 
                 @Override

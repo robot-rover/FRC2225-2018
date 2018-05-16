@@ -7,7 +7,7 @@ import org.usfirst.frc.team2225.season2018.roboRIO.RoboRIOMain;
 import org.usfirst.frc.team2225.season2018.roboRIO.Vector2D;
 import org.usfirst.frc.team2225.season2018.roboRIO.subsystems.Drivetrain;
 
-public class PlaceCube extends Command {
+public class PlaceCubeCenter extends Command {
     /** The stage of the State Machine */
     int switchStage;
 
@@ -29,13 +29,8 @@ public class PlaceCube extends Command {
     /** Tells the continue condition if it is waiting for the actual value to be greater (true) or less (false) than the expected value */
     boolean directionForward;
 
-    /**
-     * Left is negative sidesign
-     * @param sideSign which way to drive
-     */
-    public PlaceCube(int sideSign) {
+    public PlaceCubeCenter() {
         requires(RoboRIOMain.drivetrain);
-        this.sideSign = sideSign;
     }
 
     /**
@@ -45,9 +40,6 @@ public class PlaceCube extends Command {
     protected double currPos() {
         return RoboRIOMain.drivetrain.backLeft.getSelectedSensorPosition(0);
     }
-
-    /** State machine can move on if actual and expected value are within <i>allowableClosedLoopError</i> */
-    final static double allowableClosedLoopError = Drivetrain.cmToCounts(10);
 
     /**
      * This command is called every time we start autonomous
@@ -62,6 +54,9 @@ public class PlaceCube extends Command {
         gyroNextStep = null;
         nextObjective();
     }
+
+    /** State machine can move on if actual and expected value are within <i>allowableClosedLoopError</i> */
+    final static double allowableClosedLoopError = Drivetrain.cmToCounts(10);
 
     /**
      * Main Loop of State Machine
@@ -98,9 +93,10 @@ public class PlaceCube extends Command {
     private void nextObjective() {
         switch (switchStage) {
             // Step 0-1 nudge the sucker into the deployed position by moving forward then back
+            // Forward is 10cm farther in order to avoid the lip of the exchange portal
             case 0:
                 RoboRIOMain.drivetrain.omniDrive(new Vector2D(0, 0.5), 0);
-                encoderNextStep = Drivetrain.cmToCounts(10) + currPos();
+                encoderNextStep = Drivetrain.cmToCounts(20) + currPos();
                 break;
             case 1:
                 RoboRIOMain.drivetrain.omniDrive(new Vector2D(0, -0.5), 0);
@@ -114,13 +110,11 @@ public class PlaceCube extends Command {
                 timeNextStep = System.currentTimeMillis() + 1400;
                 break;
             // Setting the lifter to 0.4 then to 0 makes sure the PID holds in the up position
-            // This Step decides whether to continue after moving sideways to face towards the outside edges of the switch
-            // If it is on the incorrect side, it sets the state machine to step 100, halting execution after the current task is completed
+            // This Step decides which direction to translate
+            // Moves either left or right to face away from the driver station toward the correct switch "bin"
             case 3:
                 RoboRIOMain.lifter.move(0.4);
                 RoboRIOMain.lifter.move(0);
-                encoderNextStep = Drivetrain.cmToCounts(new Vector2D(sideSign * 370.72, 0).dot(Drivetrain.backLeftVec)) + currPos();
-                RoboRIOMain.drivetrain.omniDriveGyroTarget(new Vector2D(sideSign * 0.5, 0), RoboRIOMain.drivetrain.gyro.getAngle());
                 // The game specific message is a sequence of three letters, each one either L or R
                 // The first letter tells you which side of the close switch is your color, from the perspective of your Driver Station
                 // The second likewise for the scale
@@ -128,17 +122,21 @@ public class PlaceCube extends Command {
                 String sides = DriverStation.getInstance().getGameSpecificMessage();
                 DriverStation.reportWarning("Game Message: " + (sides == null ? "null" : sides), false);
                 if(sides != null && sides.length() > 0)
-                    if(sides.substring(0, 1).equals((sideSign > 0 ? "L" : "R"))) {
-                        switchStage = 100;
-                        DriverStation.reportWarning("Stopping because of Sides", false);
-                        break;
+                    if(sides.substring(0, 1).equals("R")) {
+                        DriverStation.reportWarning("Moving Right", false);
+                        sideSign = 1;
+                    } else {
+                        DriverStation.reportWarning("Moving Left", false);
+                        sideSign = -1;
                     }
+                encoderNextStep = Drivetrain.cmToCounts(new Vector2D(sideSign * 132.08, 0).dot(Drivetrain.backLeftVec)) + currPos();
+                RoboRIOMain.drivetrain.omniDriveGyroTarget(new Vector2D(sideSign * 0.5, 0), RoboRIOMain.drivetrain.gyro.getAngle());
                 break;
-            // Then drives forward for 2 seconds (No gyro so the side of the switch can straighten us out)
+            // Drive forward for 5 seconds (Use the edge of the switch to square ourselves)
             case 4:
                 RoboRIOMain.drivetrain.tankDrive(0, 0);
-                timeNextStep = System.currentTimeMillis() + 2000;
-                RoboRIOMain.drivetrain.omniDrive(new Vector2D(0, 0.5), 0);
+                timeNextStep = System.currentTimeMillis() + 5000;
+                RoboRIOMain.drivetrain.omniDriveGyroTarget(new Vector2D(0, 0.5), RoboRIOMain.drivetrain.gyro.getAngle());
                 break;
             // Spit out the cube
             case 5:

@@ -5,6 +5,7 @@ import edu.wpi.first.wpilibj.XboxController;
 import edu.wpi.first.wpilibj.command.Command;
 import org.usfirst.frc.team2225.season2018.roboRIO.RoboRIOMain;
 import org.usfirst.frc.team2225.season2018.roboRIO.Vector2D;
+import org.usfirst.frc.team2225.season2018.roboRIO.subsystems.Drivetrain;
 import org.usfirst.frc.team2225.season2018.roboRIO.subsystems.Lifter;
 
 public class Teleop extends Command {
@@ -15,13 +16,24 @@ public class Teleop extends Command {
         //requires(RoboRIOMain.sucker);
     }
 
+    double scaleInputs(double valIn) {
+        double[] param = {0.2, 0.3, 2};
+        double val = valIn;
+        val = Drivetrain.deadzone(param[0], val);
+        val = Math.copySign(Math.pow(Math.abs(val), param[2]), val);
+
+        if(Math.abs(val) > 0)
+            val = Drivetrain.padMinValue(param[1], val, true);
+        return val;
+    }
+
     @Override
     protected void execute() {
         XboxController joy = RoboRIOMain.driverInput.getJoy();
         Vector2D translate = new Vector2D();
-        translate.x = signSquare(joy.getX(GenericHID.Hand.kLeft));
-        translate.y = signSquare(-joy.getY(GenericHID.Hand.kLeft));
-        double rotate = -joy.getX(GenericHID.Hand.kRight);
+        translate.x = scaleInputs(joy.getX(GenericHID.Hand.kLeft));
+        translate.y = scaleInputs(-joy.getY(GenericHID.Hand.kLeft));
+        double rotate = scaleInputs(-joy.getX(GenericHID.Hand.kRight));
         RoboRIOMain.drivetrain.omniDrive(translate, Math.copySign(rotate * rotate, rotate));
         double suckerOut = 0;
         double suckerLim = 0.8;
