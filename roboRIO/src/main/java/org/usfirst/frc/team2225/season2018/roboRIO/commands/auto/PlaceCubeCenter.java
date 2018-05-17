@@ -132,10 +132,10 @@ public class PlaceCubeCenter extends Command {
                 encoderNextStep = Drivetrain.cmToCounts(new Vector2D(sideSign * 132.08, 0).dot(Drivetrain.backLeftVec)) + currPos();
                 RoboRIOMain.drivetrain.omniDriveGyroTarget(new Vector2D(sideSign * 0.5, 0), RoboRIOMain.drivetrain.gyro.getAngle());
                 break;
-            // Drive forward for 5 seconds (Use the edge of the switch to square ourselves)
+            // Drive forward correct distance (245 cm) (Use the edge of the switch to square ourselves)
             case 4:
                 RoboRIOMain.drivetrain.tankDrive(0, 0);
-                timeNextStep = System.currentTimeMillis() + 5000;
+                encoderNextStep = Drivetrain.cmToCounts(245) + currPos();
                 RoboRIOMain.drivetrain.omniDriveGyroTarget(new Vector2D(0, 0.5), RoboRIOMain.drivetrain.gyro.getAngle());
                 break;
             // Spit out the cube
