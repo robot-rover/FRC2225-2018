@@ -129,7 +129,7 @@ public class PlaceCubeCenter extends Command {
                         DriverStation.reportWarning("Moving Left", false);
                         sideSign = -1;
                     }
-                encoderNextStep = Drivetrain.cmToCounts(new Vector2D(sideSign * 132.08, 0).dot(Drivetrain.backLeftVec)) + currPos();
+                encoderNextStep = Drivetrain.cmToCounts(new Vector2D(sideSign * 150.08, 0).dot(Drivetrain.backLeftVec)) + currPos();
                 RoboRIOMain.drivetrain.omniDriveGyroTarget(new Vector2D(sideSign * 0.5, 0), RoboRIOMain.drivetrain.gyro.getAngle());
                 break;
             // Drive forward correct distance (245 cm) (Use the edge of the switch to square ourselves)
