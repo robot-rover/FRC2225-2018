@@ -9,9 +9,6 @@ plugins {
     id "jaci.gradle.EmbeddedTools" version "2017.12.23" apply false
 }
 
-// Using the 'idea' plugin allows us to use IntelliJ IDEA. IntelliJ works out-of-the-box with multiproject builds
-// and so it's very, very easy to integrate with GradleRIO and EmbeddedTools.
-// We need to apply 'idea' to all projects, including the root project (here).
 allprojects {
     apply plugin: "idea"
 }

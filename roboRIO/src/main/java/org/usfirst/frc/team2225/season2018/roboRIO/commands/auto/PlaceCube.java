@@ -7,6 +7,8 @@ import org.usfirst.frc.team2225.season2018.roboRIO.RoboRIOMain;
 import org.usfirst.frc.team2225.season2018.roboRIO.Vector2D;
 import org.usfirst.frc.team2225.season2018.roboRIO.subsystems.Drivetrain;
 
+import java.util.function.IntConsumer;
+
 public class PlaceCube extends Command {
     /** The stage of the State Machine */
     int switchStage;
@@ -28,6 +30,8 @@ public class PlaceCube extends Command {
 
     /** Tells the continue condition if it is waiting for the actual value to be greater (true) or less (false) than the expected value */
     boolean directionForward;
+
+    IntConsumer drivetrainRefresh;
 
     /**
      * Left is negative sidesign
@@ -75,20 +79,27 @@ public class PlaceCube extends Command {
         if (timeNextStep != null) {
             if (System.currentTimeMillis() > timeNextStep) {
                 timeNextStep = null;
+                drivetrainRefresh = null;
                 DriverStation.reportWarning("advanced by time", false);
                 nextObjective();
             }
         } else if (encoderNextStep != null) {
             if (directionForward ? RoboRIOMain.drivetrain.backLeft.getSelectedSensorPosition(0) > encoderNextStep : RoboRIOMain.drivetrain.backLeft.getSelectedSensorPosition(0) < encoderNextStep) {
                 encoderNextStep = null;
+                drivetrainRefresh = null;
                 DriverStation.reportWarning("advanced by encoder", false);
                 nextObjective();
             }
         } else if (gyroNextStep != null) {
             if(Math.abs(RoboRIOMain.drivetrain.gyro.getAngle() - gyroNextStep) < 5) {
                 gyroNextStep = null;
+                drivetrainRefresh = null;
                 DriverStation.reportWarning("advanced by gyro", false);
+                nextObjective();
             }
+        }
+        if(drivetrainRefresh != null) {
+            drivetrainRefresh.accept(0);
         }
     }
 
@@ -99,6 +110,7 @@ public class PlaceCube extends Command {
         switch (switchStage) {
             // Step 0-1 nudge the sucker into the deployed position by moving forward then back
             case 0:
+                drivetrainRefresh = null;
                 RoboRIOMain.drivetrain.omniDrive(new Vector2D(0, 0.5), 0);
                 encoderNextStep = Drivetrain.cmToCounts(10) + currPos();
                 break;
@@ -119,8 +131,9 @@ public class PlaceCube extends Command {
             case 3:
                 RoboRIOMain.lifter.move(0.4);
                 RoboRIOMain.lifter.move(0);
-                encoderNextStep = Drivetrain.cmToCounts(new Vector2D(sideSign * 370.72, 0).dot(Drivetrain.backLeftVec)) + currPos();
-                RoboRIOMain.drivetrain.omniDriveGyroTarget(new Vector2D(sideSign * 0.5, 0), RoboRIOMain.drivetrain.gyro.getAngle());
+                encoderNextStep = Drivetrain.cmToCounts(new Vector2D(sideSign * 380.72, 0).dot(Drivetrain.backLeftVec)) + currPos();
+                final double target = RoboRIOMain.drivetrain.gyro.getAngle();
+                drivetrainRefresh = (i) -> RoboRIOMain.drivetrain.omniDriveGyroTarget(new Vector2D(sideSign * 0.5, 0), target);
                 // The game specific message is a sequence of three letters, each one either L or R
                 // The first letter tells you which side of the close switch is your color, from the perspective of your Driver Station
                 // The second likewise for the scale
@@ -138,7 +151,8 @@ public class PlaceCube extends Command {
             case 4:
                 RoboRIOMain.drivetrain.tankDrive(0, 0);
                 timeNextStep = System.currentTimeMillis() + 2000;
-                RoboRIOMain.drivetrain.omniDrive(new Vector2D(0, 0.5), 0);
+                final double target2 = RoboRIOMain.drivetrain.gyro.getAngle();
+                drivetrainRefresh = (i) -> RoboRIOMain.drivetrain.omniDriveGyroTarget(new Vector2D(0, 0.5), target2);
                 break;
             // Spit out the cube
             case 5:

@@ -7,6 +7,10 @@ import org.usfirst.frc.team2225.season2018.roboRIO.RoboRIOMain;
 import org.usfirst.frc.team2225.season2018.roboRIO.Vector2D;
 import org.usfirst.frc.team2225.season2018.roboRIO.subsystems.Drivetrain;
 
+import java.util.function.Consumer;
+import java.util.function.IntConsumer;
+import java.util.function.IntSupplier;
+
 public class PlaceCubeCenter extends Command {
     /** The stage of the State Machine */
     int switchStage;
@@ -28,6 +32,8 @@ public class PlaceCubeCenter extends Command {
 
     /** Tells the continue condition if it is waiting for the actual value to be greater (true) or less (false) than the expected value */
     boolean directionForward;
+
+    IntConsumer drivetrainRefresh;
 
     public PlaceCubeCenter() {
         requires(RoboRIOMain.drivetrain);
@@ -70,21 +76,27 @@ public class PlaceCubeCenter extends Command {
         if (timeNextStep != null) {
             if (System.currentTimeMillis() > timeNextStep) {
                 timeNextStep = null;
+                drivetrainRefresh = null;
                 DriverStation.reportWarning("advanced by time", false);
                 nextObjective();
             }
         } else if (encoderNextStep != null) {
             if (directionForward ? RoboRIOMain.drivetrain.backLeft.getSelectedSensorPosition(0) > encoderNextStep : RoboRIOMain.drivetrain.backLeft.getSelectedSensorPosition(0) < encoderNextStep) {
                 encoderNextStep = null;
+                drivetrainRefresh = null;
                 DriverStation.reportWarning("advanced by encoder", false);
                 nextObjective();
             }
         } else if (gyroNextStep != null) {
             if(Math.abs(RoboRIOMain.drivetrain.gyro.getAngle() - gyroNextStep) < 5) {
                 gyroNextStep = null;
+                drivetrainRefresh = null;
                 DriverStation.reportWarning("advanced by gyro", false);
+                nextObjective();
             }
         }
+        if(drivetrainRefresh != null)
+            drivetrainRefresh.accept(0);
     }
 
     /**
@@ -95,6 +107,7 @@ public class PlaceCubeCenter extends Command {
             // Step 0-1 nudge the sucker into the deployed position by moving forward then back
             // Forward is 10cm farther in order to avoid the lip of the exchange portal
             case 0:
+                drivetrainRefresh = null;
                 RoboRIOMain.drivetrain.omniDrive(new Vector2D(0, 0.5), 0);
                 encoderNextStep = Drivetrain.cmToCounts(20) + currPos();
                 break;
@@ -129,14 +142,16 @@ public class PlaceCubeCenter extends Command {
                         DriverStation.reportWarning("Moving Left", false);
                         sideSign = -1;
                     }
-                encoderNextStep = Drivetrain.cmToCounts(new Vector2D(sideSign * 150.08, 0).dot(Drivetrain.backLeftVec)) + currPos();
-                RoboRIOMain.drivetrain.omniDriveGyroTarget(new Vector2D(sideSign * 0.5, 0), RoboRIOMain.drivetrain.gyro.getAngle());
+                encoderNextStep = Drivetrain.cmToCounts(new Vector2D(sideSign * 135.08 - 10, 0).dot(Drivetrain.backLeftVec)) + currPos();
+                final double target = RoboRIOMain.drivetrain.gyro.getAngle();
+                drivetrainRefresh = (i) -> RoboRIOMain.drivetrain.omniDriveGyroTarget(new Vector2D(sideSign * 0.5, 0), target);
                 break;
             // Drive forward correct distance (245 cm) (Use the edge of the switch to square ourselves)
             case 4:
                 RoboRIOMain.drivetrain.tankDrive(0, 0);
-                encoderNextStep = Drivetrain.cmToCounts(245) + currPos();
-                RoboRIOMain.drivetrain.omniDriveGyroTarget(new Vector2D(0, 0.5), RoboRIOMain.drivetrain.gyro.getAngle());
+                encoderNextStep = Drivetrain.cmToCounts(new Vector2D(0, 245).dot(Drivetrain.backLeftVec)) + currPos();
+                final double target2 = RoboRIOMain.drivetrain.gyro.getAngle();
+                RoboRIOMain.drivetrain.omniDriveGyroTarget(new Vector2D(0, 0.5), target2);
                 break;
             // Spit out the cube
             case 5:

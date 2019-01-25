@@ -17,7 +17,7 @@ import java.net.Socket;
 import java.util.concurrent.ThreadPoolExecutor;
 
 public class ImageReciever extends JFrame {
-    static final String hostname = "10.42.0.186";
+    static final String hostname = "tegra-ubuntu";
     static final int port = 1280;
     static boofcv.gui.image.ImagePanel panel;
     public static void main(String[] args) {

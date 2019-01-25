@@ -27,6 +27,11 @@ public class Vector2D {
         this.y = y;
     }
 
+    /**
+     * Copy Constructor
+     *
+     * @param vector Vector2D to copy
+     */
     public Vector2D(Vector2D vector) {
         this.x = vector.x;
         this.y = vector.y;

@@ -34,7 +34,7 @@ public class Teleop extends Command {
         translate.x = scaleInputs(joy.getX(GenericHID.Hand.kLeft));
         translate.y = scaleInputs(-joy.getY(GenericHID.Hand.kLeft));
         double rotate = scaleInputs(-joy.getX(GenericHID.Hand.kRight));
-        RoboRIOMain.drivetrain.omniDrive(translate, Math.copySign(rotate * rotate, rotate));
+        RoboRIOMain.drivetrain.omniDrive(translate, Math.copySign(rotate * rotate, rotate) * 0.7);
         double suckerOut = 0;
         double suckerLim = 0.8;
         //should be suck in (input is positive)
